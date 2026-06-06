@@ -72,6 +72,7 @@
     color: var(--text);
     white-space: nowrap;
     letter-spacing: -0.3px;
+    cursor: pointer;
   }
   .logo span { color: var(--accent); font-style: normal; }
 
@@ -103,6 +104,24 @@
   }
 
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  /* ── SOCIAL ICONS ── */
+  .socials { display: flex; align-items: center; gap: 4px; }
+  .social-link {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    color: var(--muted);
+    border: 1px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .social-link:hover {
+    color: var(--accent);
+    background: rgba(200,240,96,0.07);
+    border-color: rgba(200,240,96,0.2);
+    transform: translateY(-1px);
+  }
+  .social-divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 
   .refresh-btn {
     background: rgba(200,240,96,0.08);
@@ -199,6 +218,16 @@
     border-color: rgba(200,240,96,0.2);
     font-weight: 500;
   }
+  .journal-btn .lang-chip {
+    margin-left: auto;
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+    text-transform: uppercase;
+  }
 
   .journal-icon {
     width: 28px; height: 28px;
@@ -213,6 +242,7 @@
     border: 1px solid var(--border);
     font-family: 'DM Mono', monospace;
   }
+  .journal-icon.emoji { font-size: 0.9rem; background: var(--card); }
 
   /* ── MAIN ── */
   .main {
@@ -338,6 +368,8 @@
   }
   .article-card.clickable:active { transform: scale(0.99); }
 
+  .card-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
   .card-category-badge {
     display: inline-flex;
     align-items: center;
@@ -352,6 +384,34 @@
     background: rgba(200,240,96,0.07);
     color: var(--accent);
   }
+
+  .card-journal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    width: fit-content;
+    border: 1px solid var(--border);
+  }
+
+  .trans-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 0.58rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: 1px solid rgba(96,200,240,0.28);
+    background: rgba(96,200,240,0.08);
+    color: var(--accent3);
+  }
+  .trans-tag.big { font-size: 0.65rem; padding: 4px 11px; }
 
   .card-title {
     font-family: 'DM Mono', monospace;
@@ -392,6 +452,7 @@
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
+  .card-meta .read-more.full { color: var(--accent); }
 
   /* ── LOADING BOX ── */
   .load-box {
@@ -520,9 +581,41 @@
   .welcome-screen p {
     font-size: 0.8rem;
     color: var(--muted);
-    max-width: 380px;
+    max-width: 420px;
     line-height: 1.7;
   }
+
+  /* ── MODE CARDS ── */
+  .mode-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 6px;
+  }
+  .mode-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    text-align: left;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .mode-card:hover {
+    border-color: var(--accent);
+    background: rgba(200,240,96,0.06);
+    transform: translateY(-2px);
+  }
+  .mode-card .mc-emoji { font-size: 1.3rem; }
+  .mode-card b { font-size: 0.92rem; letter-spacing: 0.02em; }
+  .mode-card span { font-size: 0.68rem; color: var(--muted); }
 
   .journal-pills {
     display: flex;
@@ -530,6 +623,7 @@
     gap: 8px;
     justify-content: center;
     margin-top: 8px;
+    max-width: 720px;
   }
   .journal-pill {
     background: var(--card);
@@ -552,20 +646,190 @@
     background: rgba(200,240,96,0.06);
   }
 
+  /* ── MODAL (reader + confirm) ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; animation: fadeDown 0.2s ease both; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-hover);
+    animation: fadeUp 0.25s ease both;
+  }
+  .modal.reader { max-width: 760px; }
+  .modal.confirm { max-width: 420px; }
+
+  .reader-head {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-close {
+    position: absolute;
+    top: 18px; right: 20px;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.15s;
+  }
+  .modal-close:hover { color: var(--bear); border-color: var(--bear); }
+
+  .reader-title {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    color: var(--text);
+    margin: 14px 0 6px;
+    padding-right: 36px;
+  }
+  .reader-orig {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+  .reader-meta {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .reader-body {
+    padding: 22px 28px 8px;
+  }
+  .reader-body p {
+    font-size: 0.86rem;
+    line-height: 1.85;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+  .reader-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 50px 20px;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .reader-foot {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    border-radius: 50px;
+    padding: 9px 20px;
+    font-size: 0.76rem;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: transform 0.1s, box-shadow 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(200,240,96,0.25); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 9px 20px;
+    font-size: 0.76rem;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+
+  /* ── CONFIRM ── */
+  .confirm-inner { padding: 28px 26px 22px; text-align: center; }
+  .confirm-icon {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    background: rgba(96,200,240,0.1);
+    color: var(--accent3);
+    border: 1px solid rgba(96,200,240,0.3);
+  }
+  .confirm-title {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+  }
+  .confirm-text {
+    font-size: 0.76rem;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 14px;
+  }
+  .confirm-snippet {
+    font-size: 0.74rem;
+    color: var(--text);
+    line-height: 1.5;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    text-align: left;
+  }
+  .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 700px) {
     .sidebar { display: none; }
     .articles-grid { grid-template-columns: 1fr; }
     .articles-area { padding: 14px 16px; }
-    header { padding: 0 16px; }
+    header { padding: 0 14px; gap: 10px; }
     .journal-header { padding: 14px 16px 0; }
+    .socials { display: none; }
+    .reader-title { font-size: 1.25rem; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">Euro<span>Press</span></div>
+  <div class="logo" onclick="goHome()">Euro<span>Press</span></div>
   <div class="search-bar">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -573,6 +837,19 @@
     <input type="text" id="searchInput" placeholder="Search articles…" oninput="filterArticles()">
   </div>
   <div class="header-right">
+    <!-- SOCIAL ICONS — replace href="#" placeholders with your real profile URLs -->
+    <div class="socials">
+      <a class="social-link" id="social-x" href="https://x.com/" target="_blank" rel="noopener" title="X (Twitter)" aria-label="X">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 1.6h3.5l-7.6 8.7L23.7 22h-7l-5.5-7.2L4.9 22H1.4l8.1-9.3L.6 1.6h7.2l5 6.6 5.1-6.6Zm-1.2 18.3h1.9L6.4 3.6H4.3l13.4 16.3Z"/></svg>
+      </a>
+      <a class="social-link" id="social-github" href="https://github.com/giovanniminchio98" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5Z"/></svg>
+      </a>
+      <a class="social-link" id="social-linkedin" href="https://www.linkedin.com/" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33 0-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.12 20.45H3.55V9h3.57v11.45ZM22.22 0H1.77C.8 0 0 .78 0 1.74v20.5C0 23.2.8 24 1.77 24h20.45c.98 0 1.78-.8 1.78-1.76V1.74C24 .78 23.2 0 22.22 0Z"/></svg>
+      </a>
+    </div>
+    <div class="social-divider"></div>
     <button class="refresh-btn" id="refreshBtn" onclick="refreshFeed()">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
         <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -585,6 +862,13 @@
 <div class="app-body">
   <!-- SIDEBAR -->
   <nav class="sidebar">
+    <div class="sidebar-label">Browse</div>
+    <button class="journal-btn" id="nav-latest" onclick="openLatestView()">
+      <span class="journal-icon emoji">🔥</span><span>Latest</span>
+    </button>
+    <button class="journal-btn" id="nav-category" onclick="openCategoryView()">
+      <span class="journal-icon emoji">🗂️</span><span>By Category</span>
+    </button>
     <div class="sidebar-label">Journals</div>
     <div id="journalList"></div>
   </nav>
@@ -594,7 +878,15 @@
     <div class="welcome-screen" id="welcomeScreen">
       <div class="eyebrow">● Live European Press</div>
       <h2>Euro<span>Press</span></h2>
-      <p>Choose a journal to start reading. Europe's top free sources, fetched live.</p>
+      <p>Read Europe's top free sources, fetched live. Browse the <b>Latest</b> across every journal, dive in <b>By Category</b>, or pick a single title. Non-English papers are auto-translated to English.</p>
+      <div class="mode-row">
+        <button class="mode-card" onclick="openLatestView()">
+          <span class="mc-emoji">🔥</span><b>Latest</b><span>All journals, newest first</span>
+        </button>
+        <button class="mode-card" onclick="openCategoryView()">
+          <span class="mc-emoji">🗂️</span><b>By Category</b><span>Aggregated across Europe</span>
+        </button>
+      </div>
       <div class="journal-pills" id="quickPills"></div>
     </div>
 
@@ -611,198 +903,352 @@
   </div>
 </div>
 
+<!-- MODAL (reader + confirm dialog) -->
+<div class="modal-overlay" id="modalOverlay" onclick="onOverlayClick(event)">
+  <div class="modal" id="modalBox"></div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────
 // JOURNAL CONFIG
+// lang: 'en' = native English · others auto-translated to English
+// feeds: canonical-category → RSS URL  (used for journal view + aggregation)
 // ─────────────────────────────────────────────
 const JOURNALS = [
   {
-    id: 'guardian',
-    name: 'The Guardian',
-    flag: '🇬🇧',
-    subtitle: 'London · Est. 1821',
-    color: '#1a73e8',
-    colorSoft: '#deeaf7',
-    abbr: 'GU',
-    categories: [
-      { label: 'Latest',    url: 'https://www.theguardian.com/world/rss' },
-      { label: 'World',     url: 'https://www.theguardian.com/world/rss' },
-      { label: 'Politics',  url: 'https://www.theguardian.com/politics/rss' },
-      { label: 'Business',  url: 'https://www.theguardian.com/uk/business/rss' },
-      { label: 'Tech',      url: 'https://www.theguardian.com/technology/rss' },
-      { label: 'Science',   url: 'https://www.theguardian.com/science/rss' },
-      { label: 'Culture',   url: 'https://www.theguardian.com/culture/rss' },
-    ]
+    id: 'guardian', name: 'The Guardian', flag: '🇬🇧', subtitle: 'London · Est. 1821',
+    color: '#5aa9f0', colorSoft: 'rgba(90,169,240,0.12)', abbr: 'GU', lang: 'en',
+    feeds: {
+      Latest:   'https://www.theguardian.com/international/rss',
+      World:    'https://www.theguardian.com/world/rss',
+      Europe:   'https://www.theguardian.com/world/europe-news/rss',
+      Politics: 'https://www.theguardian.com/politics/rss',
+      Business: 'https://www.theguardian.com/uk/business/rss',
+      Tech:     'https://www.theguardian.com/technology/rss',
+      Science:  'https://www.theguardian.com/science/rss',
+      Culture:  'https://www.theguardian.com/culture/rss',
+      Sports:   'https://www.theguardian.com/uk/sport/rss',
+    }
   },
   {
-    id: 'bbc',
-    name: 'BBC News',
-    flag: '🇬🇧',
-    subtitle: 'London · Est. 1927',
-    color: '#e05c5c',
-    colorSoft: '#fce8e8',
-    abbr: 'BBC',
-    categories: [
-      { label: 'Latest',    url: 'https://feeds.bbci.co.uk/news/rss.xml' },
-      { label: 'World',     url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
-      { label: 'Europe',    url: 'https://feeds.bbci.co.uk/news/world/europe/rss.xml' },
-      { label: 'Business',  url: 'https://feeds.bbci.co.uk/news/business/rss.xml' },
-      { label: 'Tech',      url: 'https://feeds.bbci.co.uk/news/technology/rss.xml' },
-      { label: 'Science',   url: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml' },
-      { label: 'Health',    url: 'https://feeds.bbci.co.uk/news/health/rss.xml' },
-    ]
+    id: 'bbc', name: 'BBC News', flag: '🇬🇧', subtitle: 'London · Est. 1927',
+    color: '#e05c5c', colorSoft: 'rgba(224,92,92,0.12)', abbr: 'BBC', lang: 'en',
+    feeds: {
+      Latest:   'https://feeds.bbci.co.uk/news/rss.xml',
+      World:    'https://feeds.bbci.co.uk/news/world/rss.xml',
+      Europe:   'https://feeds.bbci.co.uk/news/world/europe/rss.xml',
+      Politics: 'https://feeds.bbci.co.uk/news/politics/rss.xml',
+      Business: 'https://feeds.bbci.co.uk/news/business/rss.xml',
+      Tech:     'https://feeds.bbci.co.uk/news/technology/rss.xml',
+      Science:  'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
+      Culture:  'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
+    }
   },
   {
-    id: 'dw',
-    name: 'Deutsche Welle',
-    flag: '🇩🇪',
-    subtitle: 'Bonn · Est. 1953',
-    color: '#7c6fcd',
-    colorSoft: '#ede5f9',
-    abbr: 'DW',
-    categories: [
-      { label: 'Latest',    url: 'https://rss.dw.com/xml/rss-en-all' },
-      { label: 'World',     url: 'https://rss.dw.com/xml/rss-en-world' },
-      { label: 'Europe',    url: 'https://rss.dw.com/xml/rss-en-eu' },
-      { label: 'Business',  url: 'https://rss.dw.com/xml/rss-en-bus' },
-      { label: 'Science',   url: 'https://rss.dw.com/xml/rss-en-sci' },
-      { label: 'Culture',   url: 'https://rss.dw.com/xml/rss-en-cul' },
-      { label: 'Sports',    url: 'https://rss.dw.com/xml/rss-en-spo' },
-    ]
+    id: 'dw', name: 'Deutsche Welle', flag: '🇩🇪', subtitle: 'Bonn · English edition',
+    color: '#7c8fd6', colorSoft: 'rgba(124,143,214,0.14)', abbr: 'DW', lang: 'en',
+    feeds: {
+      Latest:   'https://rss.dw.com/xml/rss-en-all',
+      World:    'https://rss.dw.com/xml/rss-en-world',
+      Europe:   'https://rss.dw.com/xml/rss-en-eu',
+      Business: 'https://rss.dw.com/xml/rss-en-bus',
+      Science:  'https://rss.dw.com/xml/rss-en-sci',
+      Culture:  'https://rss.dw.com/xml/rss-en-cul',
+      Sports:   'https://rss.dw.com/xml/rss-en-spo',
+    }
   },
   {
-    id: 'france24',
-    name: 'France 24',
-    flag: '🇫🇷',
-    subtitle: 'Paris · Est. 2006',
-    color: '#e8a03a',
-    colorSoft: '#fdf3d6',
-    abbr: 'F24',
-    categories: [
-      { label: 'Latest',    url: 'https://www.france24.com/en/rss' },
-      { label: 'World',     url: 'https://www.france24.com/en/world/rss' },
-      { label: 'Europe',    url: 'https://www.france24.com/en/europe/rss' },
-      { label: 'Business',  url: 'https://www.france24.com/en/business/rss' },
-      { label: 'France',    url: 'https://www.france24.com/en/france/rss' },
-      { label: 'Culture',   url: 'https://www.france24.com/en/culture/rss' },
-      { label: 'Sports',    url: 'https://www.france24.com/en/sports/rss' },
-    ]
+    id: 'france24', name: 'France 24', flag: '🇫🇷', subtitle: 'Paris · English edition',
+    color: '#e8a03a', colorSoft: 'rgba(232,160,58,0.14)', abbr: 'F24', lang: 'en',
+    feeds: {
+      Latest:   'https://www.france24.com/en/rss',
+      World:    'https://www.france24.com/en/world/rss',
+      Europe:   'https://www.france24.com/en/europe/rss',
+      Business: 'https://www.france24.com/en/business-tech/rss',
+      Culture:  'https://www.france24.com/en/culture/rss',
+      Sports:   'https://www.france24.com/en/sport/rss',
+    }
   },
   {
-    id: 'euronews',
-    name: 'Euronews',
-    flag: '🇪🇺',
-    subtitle: 'Lyon · Est. 1993',
-    color: '#3aad7d',
-    colorSoft: '#daf2e7',
-    abbr: 'EN',
-    categories: [
-      { label: 'Latest',    url: 'https://www.euronews.com/rss?format=mrss&level=theme&name=news' },
-      { label: 'World',     url: 'https://www.euronews.com/rss?format=mrss&level=theme&name=news' },
-      { label: 'Europe',    url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=europe' },
-      { label: 'Business',  url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=business' },
-      { label: 'Tech',      url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=next' },
-      { label: 'Culture',   url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=culture' },
-      { label: 'Green',     url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=green' },
-    ]
+    id: 'euronews', name: 'Euronews', flag: '🇪🇺', subtitle: 'Lyon · English edition',
+    color: '#3aad7d', colorSoft: 'rgba(58,173,125,0.14)', abbr: 'EN', lang: 'en',
+    feeds: {
+      Latest:   'https://www.euronews.com/rss?format=mrss&level=theme&name=news',
+      Europe:   'https://www.euronews.com/rss?format=mrss&level=vertical&name=my-europe',
+      Business: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=business',
+      Tech:     'https://www.euronews.com/rss?format=mrss&level=vertical&name=next',
+      Culture:  'https://www.euronews.com/rss?format=mrss&level=vertical&name=culture',
+    }
+  },
+  {
+    id: 'lemonde', name: 'Le Monde', flag: '🇫🇷', subtitle: 'Paris · français',
+    color: '#d98fb0', colorSoft: 'rgba(217,143,176,0.14)', abbr: 'LM', lang: 'fr',
+    feeds: {
+      Latest:   'https://www.lemonde.fr/rss/une.xml',
+      World:    'https://www.lemonde.fr/international/rss_full.xml',
+      Europe:   'https://www.lemonde.fr/europe/rss_full.xml',
+      Politics: 'https://www.lemonde.fr/politique/rss_full.xml',
+      Business: 'https://www.lemonde.fr/economie/rss_full.xml',
+      Tech:     'https://www.lemonde.fr/pixels/rss_full.xml',
+      Science:  'https://www.lemonde.fr/sciences/rss_full.xml',
+      Culture:  'https://www.lemonde.fr/culture/rss_full.xml',
+      Sports:   'https://www.lemonde.fr/sport/rss_full.xml',
+    }
+  },
+  {
+    id: 'elpais', name: 'El País', flag: '🇪🇸', subtitle: 'Madrid · español',
+    color: '#e0a85c', colorSoft: 'rgba(224,168,92,0.14)', abbr: 'EP', lang: 'es',
+    feeds: {
+      Latest:   'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada',
+      World:    'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada',
+      Politics: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada',
+      Business: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada',
+      Tech:     'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/tecnologia/portada',
+      Science:  'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada',
+      Culture:  'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada',
+      Sports:   'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada',
+    }
+  },
+  {
+    id: 'spiegel', name: 'Der Spiegel', flag: '🇩🇪', subtitle: 'Hamburg · deutsch',
+    color: '#cf6f6f', colorSoft: 'rgba(207,111,111,0.14)', abbr: 'SP', lang: 'de',
+    feeds: {
+      Latest:   'https://www.spiegel.de/schlagzeilen/index.rss',
+      World:    'https://www.spiegel.de/ausland/index.rss',
+      Politics: 'https://www.spiegel.de/politik/index.rss',
+      Business: 'https://www.spiegel.de/wirtschaft/index.rss',
+      Tech:     'https://www.spiegel.de/netzwelt/index.rss',
+      Science:  'https://www.spiegel.de/wissenschaft/index.rss',
+      Culture:  'https://www.spiegel.de/kultur/index.rss',
+      Sports:   'https://www.spiegel.de/sport/index.rss',
+    }
+  },
+  {
+    id: 'repubblica', name: 'la Repubblica', flag: '🇮🇹', subtitle: 'Roma · italiano',
+    color: '#6fb0cf', colorSoft: 'rgba(111,176,207,0.14)', abbr: 'RE', lang: 'it',
+    feeds: {
+      Latest:   'https://www.repubblica.it/rss/homepage/rss2.0.xml',
+      World:    'https://www.repubblica.it/rss/esteri/rss2.0.xml',
+      Politics: 'https://www.repubblica.it/rss/politica/rss2.0.xml',
+      Business: 'https://www.repubblica.it/rss/economia/rss2.0.xml',
+      Tech:     'https://www.repubblica.it/rss/tecnologia/rss2.0.xml',
+      Science:  'https://www.repubblica.it/rss/scienze/rss2.0.xml',
+      Culture:  'https://www.repubblica.it/rss/spettacoli_e_cultura/rss2.0.xml',
+      Sports:   'https://www.repubblica.it/rss/sport/rss2.0.xml',
+    }
   }
 ];
+
+const CAT_ORDER = ['Latest','World','Europe','Politics','Business','Tech','Science','Culture','Sports'];
+const AGG_CATS  = ['World','Europe','Politics','Business','Tech','Science','Culture','Sports'];
+const LANG = { en:'English', fr:'French', es:'Spanish', de:'German', it:'Italian' };
+
+// per-journal item caps
+const LIMIT_JOURNAL = 30;
+const LIMIT_AGG     = 12;
 
 // ─────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────
+let mode = 'home';                 // 'home' | 'journal' | 'category' | 'latest'
 let currentJournal = null;
-let currentCatIdx = 0;
+let currentCat = null;             // canonical category key (journal mode)
+let currentCategory = null;        // canonical category (category mode)
 let allArticles = [];
+let displayed = [];
 let searchQuery = '';
+let pendingLink = null;
+const translationCache = new Map();
 
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-function goHome() {
-  currentJournal = null;
-  allArticles = [];
-  searchQuery = '';
-  document.getElementById('searchInput').value = '';
-  document.querySelectorAll('.journal-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('journalView').style.display = 'none';
-  document.getElementById('welcomeScreen').style.display = 'flex';
-}
+function journalById(id) { return JOURNALS.find(j => j.id === id); }
 
 function init() {
   renderSidebar();
   renderQuickPills();
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
 function renderSidebar() {
-  const list = document.getElementById('journalList');
-  list.innerHTML = JOURNALS.map(j => `
+  document.getElementById('journalList').innerHTML = JOURNALS.map(j => `
     <button class="journal-btn" id="jbtn-${j.id}" onclick="selectJournal('${j.id}')">
       <span class="journal-icon" style="background:${j.colorSoft};color:${j.color}">${j.abbr}</span>
       <span>${j.name}</span>
-    </button>
-  `).join('');
+      ${j.lang !== 'en' ? `<span class="lang-chip">${j.lang}</span>` : ''}
+    </button>`).join('');
 }
 
 function renderQuickPills() {
-  const pills = document.getElementById('quickPills');
-  pills.innerHTML = JOURNALS.map(j => `
+  document.getElementById('quickPills').innerHTML = JOURNALS.map(j => `
     <button class="journal-pill" onclick="selectJournal('${j.id}')">
-      <span>${j.flag}</span> ${j.name}
-    </button>
-  `).join('');
+      <span>${j.flag}</span> ${j.name}${j.lang !== 'en' ? ` · ${j.lang.toUpperCase()}→EN` : ''}
+    </button>`).join('');
+}
+
+function setActiveNav(id) {
+  document.querySelectorAll('.journal-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function showJournalView() {
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('journalView').style.display = 'flex';
+}
+
+function goHome() {
+  mode = 'home';
+  currentJournal = null; currentCat = null; currentCategory = null;
+  allArticles = []; displayed = []; searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  setActiveNav('');
+  document.getElementById('journalView').style.display = 'none';
+  document.getElementById('welcomeScreen').style.display = 'flex';
 }
 
 // ─────────────────────────────────────────────
-// JOURNAL SELECTION
+// VIEW: BY JOURNAL
 // ─────────────────────────────────────────────
 function selectJournal(id) {
-  currentJournal = JOURNALS.find(j => j.id === id);
-  currentCatIdx = 0;
+  currentJournal = journalById(id);
+  mode = 'journal';
   searchQuery = '';
   document.getElementById('searchInput').value = '';
+  setActiveNav('jbtn-' + id);
+  showJournalView();
 
-  // sidebar active
-  document.querySelectorAll('.journal-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('jbtn-' + id).classList.add('active');
-
-  // show journal view
-  document.getElementById('welcomeScreen').style.display = 'none';
-  const jv = document.getElementById('journalView');
-  jv.style.display = 'flex';
-
+  const keys = CAT_ORDER.filter(k => currentJournal.feeds[k]);
+  currentCat = keys[0];
   renderJournalHeader();
-  loadFeed(0);
+  loadFeed(currentCat);
 }
 
 function renderJournalHeader() {
   const j = currentJournal;
-  const header = document.getElementById('journalHeader');
-  const tabs = j.categories.map((cat, i) => `
-    <button class="cat-tab ${i === currentCatIdx ? 'active' : ''}" 
-            id="cattab-${i}" onclick="loadFeed(${i})">${cat.label}</button>
-  `).join('');
-
-  header.innerHTML = `
-    <button class="back-btn" onclick="goHome()">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-        <path d="M19 12H5M12 5l-7 7 7 7"/>
-      </svg>
-      All Journals
-    </button>
+  const keys = CAT_ORDER.filter(k => j.feeds[k]);
+  const tabs = keys.map(k => `
+    <button class="cat-tab ${k === currentCat ? 'active' : ''}" data-cat="${k}"
+            onclick="loadFeed('${k}')">${k}</button>`).join('');
+  document.getElementById('journalHeader').innerHTML = `
+    ${backBtn()}
     <div class="journal-title">
       <span class="flag">${j.flag}</span>
       <div>
         <h1>${j.name}</h1>
-        <div class="journal-subtitle">${j.subtitle}</div>
+        <div class="journal-subtitle">${j.subtitle}${j.lang !== 'en' ? ` · auto-translated to English` : ''}</div>
       </div>
     </div>
-    <div class="cat-tabs">${tabs}</div>
-  `;
+    <div class="cat-tabs">${tabs}</div>`;
+}
+
+async function loadFeed(catKey) {
+  if (!currentJournal) return;
+  currentCat = catKey;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === catKey));
+  showLoading();
+  try {
+    const xml = await fetchRSS(currentJournal.feeds[catKey]);
+    if (!xml) throw new Error('no feed');
+    let arts = parseRSS(xml, currentJournal).slice(0, LIMIT_JOURNAL);
+    arts = await translateArticles(arts, currentJournal);
+    allArticles = arts;
+    hideLoading();
+    renderArticles();
+  } catch (err) {
+    hideLoading();
+    showError('Could not load this feed after trying multiple sources. Check your connection and try again, or pick another category.');
+  }
 }
 
 // ─────────────────────────────────────────────
-// FEED LOADING — multi-proxy fallback chain
+// VIEW: BY CATEGORY (aggregated)
+// ─────────────────────────────────────────────
+function openCategoryView(cat) {
+  mode = 'category';
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  setActiveNav('nav-category');
+  showJournalView();
+  const cats = AGG_CATS.filter(c => JOURNALS.some(j => j.feeds[c]));
+  currentCategory = cat || cats[0];
+  renderCategoryHeader();
+  loadCategory(currentCategory);
+}
+
+function renderCategoryHeader() {
+  const cats = AGG_CATS.filter(c => JOURNALS.some(j => j.feeds[c]));
+  const tabs = cats.map(c => `
+    <button class="cat-tab ${c === currentCategory ? 'active' : ''}" data-cat="${c}"
+            onclick="loadCategory('${c}')">${c}</button>`).join('');
+  document.getElementById('journalHeader').innerHTML = `
+    ${backBtn()}
+    <div class="journal-title">
+      <span class="flag">🗂️</span>
+      <div>
+        <h1>By Category</h1>
+        <div class="journal-subtitle">One topic, aggregated from every journal across Europe</div>
+      </div>
+    </div>
+    <div class="cat-tabs">${tabs}</div>`;
+}
+
+function loadCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+  loadAggregated(j => j.feeds[cat]);
+}
+
+// ─────────────────────────────────────────────
+// VIEW: LATEST (aggregated, newest first)
+// ─────────────────────────────────────────────
+function openLatestView() {
+  mode = 'latest';
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  setActiveNav('nav-latest');
+  showJournalView();
+  document.getElementById('journalHeader').innerHTML = `
+    ${backBtn()}
+    <div class="journal-title">
+      <span class="flag">🔥</span>
+      <div>
+        <h1>Latest</h1>
+        <div class="journal-subtitle">Freshest stories from every journal — newest first</div>
+      </div>
+    </div>`;
+  loadAggregated(j => j.feeds.Latest || j.feeds.World);
+}
+
+// ─────────────────────────────────────────────
+// AGGREGATION ENGINE
+// ─────────────────────────────────────────────
+async function loadAggregated(feedSelector) {
+  showLoading();
+  const tasks = JOURNALS.map(async j => {
+    const url = feedSelector(j);
+    if (!url) return [];
+    try {
+      const xml = await fetchRSS(url);
+      if (!xml) return [];
+      let arts = parseRSS(xml, j).slice(0, LIMIT_AGG);
+      arts = await translateArticles(arts, j);
+      return arts;
+    } catch { return []; }
+  });
+  const results = await Promise.allSettled(tasks);
+  let merged = [];
+  results.forEach(r => { if (r.status === 'fulfilled') merged = merged.concat(r.value); });
+  merged.sort((a, b) => tdate(b.pubDate) - tdate(a.pubDate));
+  allArticles = merged;
+  hideLoading();
+  if (merged.length) renderArticles();
+  else showError('Could not load any sources right now. Please try Refresh in a moment.');
+}
+
+// ─────────────────────────────────────────────
+// FETCH — multi-proxy fallback chain
 // ─────────────────────────────────────────────
 const PROXIES = [
   url => ({ mode: 'json',   fetch: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}` }),
@@ -811,19 +1257,29 @@ const PROXIES = [
   url => ({ mode: 'direct', fetch: url }),
 ];
 
-async function fetchWithTimeout(url, ms = 8000) {
+function fetchWithTimeout(url, ms = 9000) {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(id);
-    return res;
-  } catch (e) {
-    clearTimeout(id);
-    throw e;
-  }
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
+// returns raw text body for any URL (used by translation)
+async function proxyFetchText(url) {
+  for (const proxyFn of PROXIES) {
+    const { mode, fetch: proxyUrl } = proxyFn(url);
+    try {
+      const res = await fetchWithTimeout(proxyUrl, 9000);
+      if (!res.ok) continue;
+      let text;
+      if (mode === 'json') { const d = await res.json(); text = d.contents; }
+      else text = await res.text();
+      if (text && text.length) return text;
+    } catch { continue; }
+  }
+  return null;
+}
+
+// returns a parsed XML doc with at least one <item>/<entry>, else null
 async function fetchRSS(feedUrl) {
   for (const proxyFn of PROXIES) {
     const { mode, fetch: proxyUrl } = proxyFn(feedUrl);
@@ -831,181 +1287,325 @@ async function fetchRSS(feedUrl) {
       const res = await fetchWithTimeout(proxyUrl, 9000);
       if (!res.ok) continue;
       let text;
-      if (mode === 'json') {
-        const data = await res.json();
-        text = data.contents;
-      } else {
-        text = await res.text();
-      }
+      if (mode === 'json') { const d = await res.json(); text = d.contents; }
+      else text = await res.text();
       if (!text || text.length < 100) continue;
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'text/xml');
-      const items = xml.querySelectorAll('item');
-      if (items.length === 0) continue;   // try next proxy
-      return xml;
-    } catch (e) {
-      continue; // try next proxy
-    }
+      const xml = new DOMParser().parseFromString(text, 'text/xml');
+      if (xml.querySelector('item, entry')) return xml;
+    } catch { continue; }
   }
   return null;
 }
 
-async function loadFeed(catIdx) {
-  if (!currentJournal) return;
-  currentCatIdx = catIdx;
-
-  document.querySelectorAll('.cat-tab').forEach((t, i) => {
-    t.classList.toggle('active', i === catIdx);
-  });
-
-  showLoading();
-
-  const feedUrl = currentJournal.categories[catIdx].url;
-
-  try {
-    const xml = await fetchRSS(feedUrl);
-    if (!xml) throw new Error('All proxies failed');
-    allArticles = parseRSS(xml, currentJournal);
-    hideLoading();
-    renderArticles();
-  } catch (err) {
-    hideLoading(); showError('Could not load this feed after trying multiple sources. Please check your internet connection and try again, or pick another category.');
-  }
-}
+// ─────────────────────────────────────────────
+// PARSING
+// ─────────────────────────────────────────────
+function txt(node, sel) { const n = node.querySelector(sel); return n ? n.textContent.trim() : ''; }
 
 function parseRSS(xml, journal) {
-  const items = Array.from(xml.querySelectorAll('item'));
-  return items.slice(0, 40).map(item => {
-    const title   = item.querySelector('title')?.textContent?.trim() || '';
-    const desc    = item.querySelector('description')?.textContent?.replace(/<[^>]*>/g, '')?.trim() || '';
-    const link    = item.querySelector('link')?.textContent?.trim() || '#';
-    const pubDate = item.querySelector('pubDate')?.textContent?.trim() || '';
-    const cat     = item.querySelector('category')?.textContent?.trim() || '';
-    return { title, desc, link, pubDate, cat };
+  let nodes = Array.from(xml.querySelectorAll('item'));
+  if (!nodes.length) nodes = Array.from(xml.querySelectorAll('entry')); // Atom
+  return nodes.map(node => {
+    const title = txt(node, 'title');
+    let desc = (txt(node, 'description') || txt(node, 'summary')).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    // link (RSS text node, or Atom <link href>)
+    let link = txt(node, 'link');
+    if (!link) { const l = node.querySelector('link'); if (l) link = l.getAttribute('href') || ''; }
+    const pubDate = txt(node, 'pubDate') || txt(node, 'published') || txt(node, 'updated') || txt(node, 'date');
+    const cat = txt(node, 'category');
+
+    // full text from content:encoded (or content)
+    let fullHtml = '';
+    const enc = node.getElementsByTagName('content:encoded')[0];
+    if (enc) fullHtml = enc.textContent || '';
+    if (!fullHtml) { const c = node.getElementsByTagName('content')[0]; if (c) fullHtml = c.textContent || ''; }
+    const fullParas = htmlToParas(fullHtml);
+    const fullLen = fullParas.join(' ').length;
+    const hasFull = fullLen > 600;
+
+    return {
+      title, desc, link: link || '', pubDate, cat,
+      journalId: journal.id, lang: journal.lang,
+      fullParas: hasFull ? fullParas : [], hasFull
+    };
   }).filter(a => a.title);
 }
 
+function htmlToParas(html) {
+  if (!html) return [];
+  let t = html
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]*>/g, '');
+  const ta = document.createElement('textarea'); ta.innerHTML = t; t = ta.value;
+  return t.split(/\n{2,}/).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 1);
+}
+
+function tdate(s) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
+
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = Math.floor((now - d) / 60000);
-    if (diff < 1)   return 'Just now';
-    if (diff < 60)  return `${diff}m ago`;
-    if (diff < 1440) return `${Math.floor(diff/60)}h ago`;
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  } catch { return ''; }
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  const diff = Math.floor((Date.now() - d) / 60000);
+  if (diff < 1)    return 'Just now';
+  if (diff < 60)   return `${diff}m ago`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// ─────────────────────────────────────────────
+// TRANSLATION (free Google gtx endpoint, batched + cached)
+// ─────────────────────────────────────────────
+async function translateArticles(arts, j) {
+  if (j.lang === 'en') { arts.forEach(a => a.lang = 'en'); return arts; }
+  const titles = arts.map(a => a.title);
+  const descs  = arts.map(a => a.desc || '');
+  let tT = titles, tD = descs;
+  try { [tT, tD] = await Promise.all([translateLines(titles, j.lang), translateLines(descs, j.lang)]); }
+  catch { /* keep originals on failure */ }
+  arts.forEach((a, i) => {
+    a.titleOrig = a.title; a.descOrig = a.desc;
+    a.title = tT[i] || a.title;
+    a.desc  = tD[i] || a.desc;
+    a.lang  = j.lang;
+  });
+  return arts;
+}
+
+// translate an array of strings; preserves order, caches per line, batches by size
+async function translateLines(lines, sl) {
+  if (!sl || sl === 'en') return lines.slice();
+  const out = new Array(lines.length);
+  let batch = [], idx = [], size = 0;
+  const flush = async () => {
+    if (!batch.length) return;
+    const tr = await gtxBatch(batch, sl);
+    tr.forEach((t, k) => { const i = idx[k]; out[i] = t; translationCache.set(sl + '::' + lines[i], t); });
+    batch = []; idx = []; size = 0;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i] || '';
+    if (!ln) { out[i] = ''; continue; }
+    const key = sl + '::' + ln;
+    if (translationCache.has(key)) { out[i] = translationCache.get(key); continue; }
+    if (size + ln.length > 1400 && batch.length) await flush();
+    batch.push(ln); idx.push(i); size += ln.length + 1;
+  }
+  await flush();
+  for (let i = 0; i < lines.length; i++) if (out[i] === undefined) out[i] = lines[i];
+  return out;
+}
+
+// translate newline-joined block in one request, reconstruct line-by-line
+async function gtxBatch(lines, sl) {
+  const q = lines.join('\n');
+  const api = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=en&dt=t&q=${encodeURIComponent(q)}`;
+  const text = await proxyFetchText(api);
+  if (!text) return lines;
+  let data;
+  try { data = JSON.parse(text); } catch { return lines; }
+  const segs = (data && data[0]) || [];
+  const full = segs.map(s => (s && s[0]) ? s[0] : '').join('');
+  const outLines = full.split('\n');
+  if (outLines.length === lines.length) return outLines;
+  // mismatch → best effort
+  if (outLines.length > lines.length) return outLines.slice(0, lines.length);
+  return lines.map((l, i) => (outLines[i] !== undefined && outLines[i] !== '') ? outLines[i] : l);
 }
 
 // ─────────────────────────────────────────────
 // RENDER ARTICLES
 // ─────────────────────────────────────────────
 function renderArticles() {
-  const j = currentJournal;
   const sv = document.getElementById('stateView');
   const al = document.getElementById('articlesList');
   sv.style.display = 'none';
   al.style.display = 'block';
 
   const q = searchQuery.toLowerCase();
-  const filtered = q
-    ? allArticles.filter(a => a.title.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
-    : allArticles;
+  displayed = q
+    ? allArticles.filter(a => a.title.toLowerCase().includes(q) || (a.desc || '').toLowerCase().includes(q))
+    : allArticles.slice();
 
-  if (filtered.length === 0) {
+  if (!displayed.length) {
     al.innerHTML = `<div class="state-view" style="display:flex">
       <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
-      <p>${q ? 'No articles match your search.' : 'No articles found for this category.'}</p>
+      <p>${q ? 'No articles match your search.' : 'No articles found here.'}</p>
     </div>`;
     return;
   }
 
   al.innerHTML = `
-    <div class="articles-count">${filtered.length} article${filtered.length !== 1 ? 's' : ''}</div>
-    <div class="articles-grid">
-      ${filtered.map((a, i) => articleCard(a, j, i)).join('')}
-    </div>
-  `;
+    <div class="articles-count">${displayed.length} article${displayed.length !== 1 ? 's' : ''}${mode !== 'journal' ? ' · across journals' : ''}</div>
+    <div class="articles-grid">${displayed.map((a, i) => articleCard(a, i)).join('')}</div>`;
 }
 
-function articleCard(a, j, i) {
-  const delay = Math.min(i * 0.04, 0.5);
-  const badge = a.cat
-    ? `<span class="card-category-badge" style="background:${j.colorSoft};color:${j.color}">${a.cat.slice(0,28)}</span>`
+function articleCard(a, i) {
+  const j = journalById(a.journalId);
+  const delay = Math.min(i * 0.03, 0.4);
+  const showJournal = mode !== 'journal';
+  const jBadge = showJournal
+    ? `<span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>`
     : '';
-  const safeLink = a.link.startsWith('http') ? a.link : null;
-  const clickable = safeLink ? `onclick="window.open('${safeLink.replace(/'/g,"\\'")}','_blank','noopener')" role="link" tabindex="0"` : '';
+  const catBadge = (mode === 'journal' && a.cat)
+    ? `<span class="card-category-badge">${escHtml(a.cat.slice(0, 24))}</span>`
+    : '';
+  const transTag = (a.lang && a.lang !== 'en')
+    ? `<span class="trans-tag" title="Original language: ${LANG[a.lang]}">↻ ${a.lang.toUpperCase()}→EN</span>`
+    : '';
+  const action = a.hasFull
+    ? '<span class="read-more full">Read here →</span>'
+    : '<span class="read-more">Open link ↗</span>';
   return `
-    <div class="article-card ${safeLink ? 'clickable' : ''}" ${clickable} style="animation-delay:${delay}s">
-      ${badge}
+    <div class="article-card clickable" onclick="openArticle(${i})" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter')openArticle(${i})" style="animation-delay:${delay}s">
+      <div class="card-badges">${jBadge}${catBadge}${transTag}</div>
       <div class="card-title">${escHtml(a.title)}</div>
-      ${a.desc ? `<div class="card-desc">${escHtml(a.desc.slice(0,180))}</div>` : ''}
+      ${a.desc ? `<div class="card-desc">${escHtml(a.desc.slice(0, 200))}</div>` : ''}
       <div class="card-meta">
         <span class="date">${formatDate(a.pubDate)}</span>
-        ${safeLink ? '<span class="read-more">Open article ↗</span>' : ''}
+        ${action}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 function escHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function escAttr(str) { return (str || '').replace(/"/g, '%22').replace(/'/g, '%27'); }
+
+// ─────────────────────────────────────────────
+// CARD ACTION: read here (full text) OR confirm external link
+// ─────────────────────────────────────────────
+function openArticle(i) {
+  const a = displayed[i];
+  if (!a) return;
+  if (a.hasFull) openReader(a);
+  else openConfirm(a);
+}
+
+// ── In-app reader (full text available) ──
+async function openReader(a) {
+  const j = journalById(a.journalId);
+  openOverlay('reader');
+  let paras = a.fullParas || [];
+  if (a.lang && a.lang !== 'en') {
+    document.getElementById('modalBox').innerHTML = `
+      <div class="reader-loading"><div class="spinner-ring"></div>
+      <p>Translating from ${LANG[a.lang]} to English…</p></div>`;
+    if (!a.fullParasEn) {
+      try { a.fullParasEn = await translateLines(paras, a.lang); }
+      catch { a.fullParasEn = paras; }
+    }
+    paras = a.fullParasEn;
+  }
+  document.getElementById('modalBox').innerHTML = readerHtml(a, j, paras);
+}
+
+function readerHtml(a, j, paras) {
+  const isTr = a.lang && a.lang !== 'en';
+  const transBadge = isTr ? `<span class="trans-tag big">↻ Translated from ${LANG[a.lang]}</span>` : '';
+  const orig = (isTr && a.titleOrig) ? `<div class="reader-orig">Original (${LANG[a.lang]}): ${escHtml(a.titleOrig)}</div>` : '';
+  const body = paras.length
+    ? paras.map(p => `<p>${escHtml(p)}</p>`).join('')
+    : `<p>${escHtml(a.desc || 'No preview available.')}</p>`;
+  return `
+    <div class="reader-head">
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+      <div class="card-badges">
+        <span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>
+        ${transBadge}
+      </div>
+      <h2 class="reader-title">${escHtml(a.title)}</h2>
+      ${orig}
+      <div class="reader-meta">${formatDate(a.pubDate)}${a.cat ? ' · ' + escHtml(a.cat) : ''}</div>
+    </div>
+    <div class="reader-body">${body}</div>
+    <div class="reader-foot">
+      <button class="btn-ghost" onclick="closeModal()">Close</button>
+      ${a.link ? `<a class="btn-primary" href="${escAttr(a.link)}" target="_blank" rel="noopener">Open original ↗</a>` : ''}
+    </div>`;
+}
+
+// ── Confirm dialog (no full text) ──
+function openConfirm(a) {
+  const j = journalById(a.journalId);
+  pendingLink = a.link || null;
+  openOverlay('confirm');
+  document.getElementById('modalBox').innerHTML = `
+    <div class="confirm-inner">
+      <div class="confirm-icon">↗</div>
+      <h3 class="confirm-title">Open external link?</h3>
+      <p class="confirm-text">Full text isn't available in-app for this story. It will open on <b>${escHtml(j.name)}</b> in a new tab.</p>
+      <div class="confirm-snippet">${escHtml(a.title)}</div>
+      <div class="confirm-actions">
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="doOpenPending()" ${pendingLink ? '' : 'disabled'}>OK, open link ↗</button>
+      </div>
+    </div>`;
+}
+
+function doOpenPending() {
+  if (pendingLink) window.open(pendingLink, '_blank', 'noopener');
+  closeModal();
+}
+
+// ── Modal plumbing ──
+function openOverlay(kind) {
+  const box = document.getElementById('modalBox');
+  box.className = 'modal ' + kind;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  pendingLink = null;
+}
+function onOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
 
 // ─────────────────────────────────────────────
-// STATES
+// LOADING / ERROR STATES
 // ─────────────────────────────────────────────
 let loadingInterval = null;
 
 function showLoading() {
   const sv = document.getElementById('stateView');
-  const al = document.getElementById('articlesList');
-  al.style.display = 'none';
+  document.getElementById('articlesList').style.display = 'none';
   sv.style.display = 'flex';
-
-  const steps = [
-    'Connecting to feed…',
-    'Fetching articles…',
-    'Parsing content…',
-    'Almost there…',
-  ];
+  const steps = ['Connecting to feeds…', 'Fetching articles…', 'Translating to English…', 'Almost there…'];
   let step = 0;
-
   sv.innerHTML = `
     <div class="load-box">
       <div class="load-spinner"></div>
       <div class="load-label" id="loadLabel">${steps[0]}</div>
       <div class="load-bar-track"><div class="load-bar-fill" id="loadBarFill"></div></div>
-      <div class="load-sub" id="loadSub">Trying available sources — this may take a few seconds</div>
+      <div class="load-sub">Trying available sources — this may take a few seconds</div>
     </div>`;
-
   clearInterval(loadingInterval);
   let pct = 5;
   loadingInterval = setInterval(() => {
-    pct = Math.min(pct + Math.random() * 18, 85);
+    pct = Math.min(pct + Math.random() * 16, 85);
     const fill = document.getElementById('loadBarFill');
     const label = document.getElementById('loadLabel');
     if (fill) fill.style.width = pct + '%';
-    if (label && step < steps.length - 1) {
-      step++;
-      label.textContent = steps[step];
-    }
-  }, 1400);
+    if (label && step < steps.length - 1) { step++; label.textContent = steps[step]; }
+  }, 1300);
 }
 
 function hideLoading() {
   clearInterval(loadingInterval);
   const fill = document.getElementById('loadBarFill');
-  if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--accent-green)'; }
+  if (fill) fill.style.width = '100%';
 }
 
 function showError(msg) {
   const sv = document.getElementById('stateView');
-  const al = document.getElementById('articlesList');
-  al.style.display = 'none';
+  document.getElementById('articlesList').style.display = 'none';
   sv.style.display = 'flex';
   sv.innerHTML = `<div class="error-msg">⚠️ ${msg}</div>`;
 }
@@ -1022,11 +1622,22 @@ function refreshFeed() {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spinning');
   const done = () => btn.classList.remove('spinning');
-  if (currentJournal) {
-    loadFeed(currentCatIdx).then(done).catch(done);
-  } else {
-    setTimeout(done, 600);
-  }
+  let p;
+  if (mode === 'journal' && currentJournal) p = loadFeed(currentCat);
+  else if (mode === 'category') p = loadCategory(currentCategory) || Promise.resolve();
+  else if (mode === 'latest') p = openLatestViewReload();
+  if (p && p.then) p.then(done).catch(done);
+  else setTimeout(done, 600);
+}
+function openLatestViewReload() { return loadAggregated(j => j.feeds.Latest || j.feeds.World); }
+
+// ─────────────────────────────────────────────
+function backBtn() {
+  return `<button class="back-btn" onclick="goHome()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg> Home
+    </button>`;
 }
 
 init();
