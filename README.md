@@ -22,9 +22,13 @@ feeds from major European journals in the browser via CORS proxies.
   its titles, summaries and full text translated on the fly. Cards show a
   `XX→YY` badge; the reader shows *"Translated from …"* plus the original headline.
   Translations are cached per language.
-- **Smart card actions**
-  - If the feed carries the full article text, the card opens an **in-app reader**.
-  - Otherwise it asks **"Open external link?"** — confirm to open the original in a new tab, cancel to stay.
+- **Full-text in-app reader for every article**
+  - Uses the feed's full text when present; otherwise fetches the article page
+    and extracts the readable content (Mozilla Readability, with a heuristic
+    fallback), then translates it into your language.
+  - If the text can't be extracted (paywall / JS-only page), it shows the
+    translated **summary** plus an *Open original* link — so a non-speaker can
+    always read at least an explanation.
 - **Search**, live **Refresh**, and the original dark UI — unchanged look and feel.
 - **Social icons** in the header (X, GitHub, LinkedIn).
 

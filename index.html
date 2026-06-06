@@ -13,6 +13,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EuroPress">
+<!-- article text extraction (reader mode); falls back to a heuristic if it can't load -->
+<script defer src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
 
@@ -768,6 +770,16 @@
   .reader-body {
     padding: 22px 28px 8px;
   }
+  .reader-notice {
+    font-size: 0.72rem;
+    color: var(--accent2);
+    background: rgba(240,184,96,0.08);
+    border: 1px solid rgba(240,184,96,0.25);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    line-height: 1.55;
+  }
   .reader-body p {
     font-size: 0.86rem;
     line-height: 1.85;
@@ -1119,6 +1131,9 @@ const I18N = {
     acrossJournals: ' · da più testate',
     loadingSteps: ['Connessione ai feed…', 'Recupero articoli…', 'Traduzione in corso…', 'Quasi pronto…'],
     translating: l => `Traduzione da ${l} all'italiano…`,
+    loadingText: 'Caricamento dell\'articolo…',
+    summaryLabel: 'Riassunto',
+    textUnavailable: 'testo completo non disponibile; ecco il riassunto. Apri l\'originale per l\'articolo intero.',
     errFeed: 'Impossibile caricare questo feed dopo vari tentativi. Controlla la connessione e riprova, o scegli un\'altra categoria.',
     errAgg: 'Impossibile caricare le fonti in questo momento. Riprova tra poco con Aggiorna.',
     noMatch: 'Nessun articolo corrisponde alla ricerca.',
@@ -1149,6 +1164,9 @@ const I18N = {
     acrossJournals: ' · across journals',
     loadingSteps: ['Connecting to feeds…', 'Fetching articles…', 'Translating…', 'Almost there…'],
     translating: l => `Translating from ${l} to English…`,
+    loadingText: 'Loading the article…',
+    summaryLabel: 'Summary',
+    textUnavailable: 'full text unavailable; showing the summary. Open the original for the complete story.',
     errFeed: 'Could not load this feed after trying multiple sources. Check your connection and try again, or pick another category.',
     errAgg: 'Could not load any sources right now. Please try Refresh in a moment.',
     noMatch: 'No articles match your search.',
@@ -1179,6 +1197,9 @@ const I18N = {
     acrossJournals: ' · useista lehdistä',
     loadingSteps: ['Yhdistetään syötteisiin…', 'Haetaan artikkeleita…', 'Käännetään…', 'Melkein valmis…'],
     translating: l => `Käännetään kielestä ${l} suomeksi…`,
+    loadingText: 'Ladataan artikkelia…',
+    summaryLabel: 'Tiivistelmä',
+    textUnavailable: 'koko tekstiä ei ole saatavilla; näytetään tiivistelmä. Avaa alkuperäinen koko juttua varten.',
     errFeed: 'Syötteen lataaminen epäonnistui useista yrityksistä huolimatta. Tarkista yhteytesi ja yritä uudelleen, tai valitse toinen kategoria.',
     errAgg: 'Lähteitä ei voitu ladata juuri nyt. Yritä hetken kuluttua Päivitä-painikkeella.',
     noMatch: 'Hakuasi vastaavia artikkeleita ei löytynyt.',
@@ -1729,9 +1750,7 @@ function articleCard(a, i) {
   const transTag = a.translated
     ? `<span class="trans-tag" title="${escAttr(langName(a.srcLang))}">↻ ${a.srcLang.toUpperCase()}→${uiLang.toUpperCase()}</span>`
     : '';
-  const action = a.hasFull
-    ? `<span class="read-more full">${t('readHere')}</span>`
-    : `<span class="read-more">${t('openLink')}</span>`;
+  const action = `<span class="read-more full">${t('readHere')}</span>`;
   return `
     <div class="article-card clickable" onclick="openArticle(${i})" role="button" tabindex="0"
          onkeydown="if(event.key==='Enter')openArticle(${i})" style="animation-delay:${delay}s">
@@ -1751,35 +1770,89 @@ function escHtml(str) {
 function escAttr(str) { return (str || '').replace(/"/g, '%22').replace(/'/g, '%27'); }
 
 // ─────────────────────────────────────────────
-// CARD ACTION: read here (full text) OR confirm external link
+// CARD ACTION: open the in-app reader for every article.
+// We try to obtain the full text (from the feed, else by fetching + extracting
+// the page), translate it, and fall back to the translated summary if needed.
 // ─────────────────────────────────────────────
 function openArticle(i) {
   const a = displayed[i];
-  if (!a) return;
-  if (a.hasFull) openReader(a);
-  else openConfirm(a);
+  if (a) openReader(a);
 }
 
 async function openReader(a) {
   const j = journalById(a.journalId);
   openOverlay('reader');
-  let paras = a.fullParas || [];
-  if (a.translated) {
-    document.getElementById('modalBox').innerHTML = `
-      <div class="reader-loading"><div class="spinner-ring"></div>
-      <p>${t('translating', langName(a.srcLang))}</p></div>`;
-    if (!a._trParas) {
-      try { a._trParas = await translateLines(paras, a.srcLang, uiLang); }
-      catch { a._trParas = paras; }
-    }
-    paras = a._trParas;
+  const box = document.getElementById('modalBox');
+
+  // 1) obtain source-language paragraphs: feed full text → cached fetch → live fetch
+  let src = (a.fullParas && a.fullParas.length) ? a.fullParas : a._srcParas;
+  if (!src && a.link) {
+    box.innerHTML = readerStatus(a, j, t('loadingText'));
+    try { src = await fetchArticleText(a.link); } catch { src = []; }
+    a._srcParas = src || [];
   }
-  document.getElementById('modalBox').innerHTML = readerHtml(a, j, paras);
+  src = src || [];
+
+  // 2) translate to the chosen UI language (if the source isn't already in it)
+  let body = src;
+  if (src.length && a.translated) {
+    box.innerHTML = readerStatus(a, j, t('translating', langName(a.srcLang)));
+    if (!a._trParas) {
+      try { a._trParas = await translateLines(src, a.srcLang, uiLang); }
+      catch { a._trParas = src; }
+    }
+    body = a._trParas;
+  }
+
+  // 3) fallback: no full text → show the (translated) summary, clearly labelled
+  const incomplete = !body.length;
+  if (incomplete) body = a.desc ? [a.desc] : [];
+  box.innerHTML = readerHtml(a, j, body, incomplete);
 }
 
-function readerHtml(a, j, paras) {
+// fetch the article page through the proxy chain and extract readable paragraphs
+async function fetchArticleText(url) {
+  const html = await proxyFetchText(bust(url));
+  if (!html || html.length < 500) return [];
+  let doc;
+  try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch { return []; }
+  let paras = [];
+  // primary: Mozilla Readability (loaded from CDN; may be unavailable offline)
+  try {
+    if (typeof Readability !== 'undefined') {
+      const art = new Readability(doc.cloneNode(true)).parse();
+      if (art && art.content) paras = htmlToParas(art.content);
+    }
+  } catch { /* fall through to heuristic */ }
+  // fallback heuristic: gather paragraph-like text from the main content
+  if (paras.join(' ').length < 400) {
+    const scope = doc.querySelector('article, main') || doc.body || doc;
+    const ps = scope ? Array.from(scope.querySelectorAll('p')) : [];
+    const h = ps.map(p => p.textContent.replace(/\s+/g, ' ').trim()).filter(s => s.length > 40);
+    if (h.join(' ').length > paras.join(' ').length) paras = h;
+  }
+  // cap length so translation stays fast / within sane limits
+  const capped = []; let total = 0;
+  for (const p of paras) { if (total > 8000) break; capped.push(p); total += p.length; }
+  return capped;
+}
+
+function readerStatus(a, j, msg) {
+  return `
+    <div class="reader-head">
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+      <div class="card-badges">
+        <span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>
+      </div>
+      <h2 class="reader-title">${escHtml(a.title)}</h2>
+    </div>
+    <div class="reader-loading"><div class="spinner-ring"></div><p>${escHtml(msg)}</p></div>`;
+}
+
+function readerHtml(a, j, paras, incomplete) {
   const transBadge = a.translated ? `<span class="trans-tag big">${t('translatedFrom', langName(a.srcLang))}</span>` : '';
   const orig = (a.translated && a.rawTitle) ? `<div class="reader-orig">${t('original', langName(a.srcLang))}${escHtml(a.rawTitle)}</div>` : '';
+  const notice = incomplete ? `<div class="reader-notice">${t('summaryLabel')} · ${t('textUnavailable')}</div>` : '';
   const body = paras.length
     ? paras.map(p => `<p>${escHtml(p)}</p>`).join('')
     : `<p>${escHtml(a.desc || '')}</p>`;
@@ -1794,33 +1867,11 @@ function readerHtml(a, j, paras) {
       ${orig}
       <div class="reader-meta">${formatDate(a.pubDate)}${a.cat ? ' · ' + escHtml(a.cat) : ''}</div>
     </div>
-    <div class="reader-body">${body}</div>
+    <div class="reader-body">${notice}${body}</div>
     <div class="reader-foot">
       <button class="btn-ghost" onclick="closeModal()">${t('close')}</button>
       ${a.link ? `<a class="btn-primary" href="${escAttr(a.link)}" target="_blank" rel="noopener">${t('openOriginal')}</a>` : ''}
     </div>`;
-}
-
-function openConfirm(a) {
-  const j = journalById(a.journalId);
-  pendingLink = a.link || null;
-  openOverlay('confirm');
-  document.getElementById('modalBox').innerHTML = `
-    <div class="confirm-inner">
-      <div class="confirm-icon">↗</div>
-      <h3 class="confirm-title">${t('confirmTitle')}</h3>
-      <p class="confirm-text">${t('confirmText', escHtml(j.name))}</p>
-      <div class="confirm-snippet">${escHtml(a.title)}</div>
-      <div class="confirm-actions">
-        <button class="btn-ghost" onclick="closeModal()">${t('cancel')}</button>
-        <button class="btn-primary" onclick="doOpenPending()" ${pendingLink ? '' : 'disabled'}>${t('okOpen')}</button>
-      </div>
-    </div>`;
-}
-
-function doOpenPending() {
-  if (pendingLink) window.open(pendingLink, '_blank', 'noopener');
-  closeModal();
 }
 
 function openOverlay(kind) {
