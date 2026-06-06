@@ -1846,7 +1846,11 @@ function readerStatus(a, j, msg) {
       </div>
       <h2 class="reader-title">${escHtml(a.title)}</h2>
     </div>
-    <div class="reader-loading"><div class="spinner-ring"></div><p>${escHtml(msg)}</p></div>`;
+    <div class="reader-loading"><div class="spinner-ring"></div><p>${escHtml(msg)}</p></div>
+    <div class="reader-foot">
+      <button class="btn-ghost" onclick="closeModal()">${t('close')}</button>
+      ${a.link ? `<a class="btn-primary" href="${escAttr(a.link)}" target="_blank" rel="noopener">${t('openOriginal')}</a>` : ''}
+    </div>`;
 }
 
 function readerHtml(a, j, paras, incomplete) {
