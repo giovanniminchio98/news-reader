@@ -40,7 +40,8 @@
     font-family: 'DM Mono', monospace;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -198,7 +199,7 @@
     display: flex;
     flex: 1;
     overflow: hidden;
-    height: calc(100vh - 58px);
+    min-height: 0;
   }
 
   /* ── SIDEBAR ── */
@@ -863,9 +864,16 @@
     .sidebar { display: none; }
     .articles-grid { grid-template-columns: 1fr; }
     .articles-area { padding: 14px 16px; }
-    header { padding: 0 14px; gap: 10px; }
-    .journal-header { padding: 14px 16px 0; }
+    /* wrap the header: logo + search on line 1, language + refresh on line 2 */
+    header { height: auto; padding: 10px 14px; gap: 10px 12px; flex-wrap: wrap; }
+    .logo { order: 1; }
+    .search-bar { order: 2; flex: 1 1 0; max-width: none; min-width: 0; }
+    .header-right { order: 3; flex-basis: 100%; justify-content: flex-end; }
     .socials { display: none; }
+    .social-divider { display: none; }
+    .controls { flex-direction: row; align-items: center; gap: 8px; }
+    .controls .lang-select, .controls .refresh-btn { width: auto; }
+    .journal-header { padding: 14px 16px 0; }
     .reader-title { font-size: 1.25rem; }
   }
 </style>
@@ -874,7 +882,7 @@
 
 <header>
   <div class="logo" onclick="goHome()"><img src="icon.svg" alt="" class="logo-img">Euro<span>Press</span></div>
-  <div class="search-bar">
+  <div class="search-bar" id="searchBar" style="display:none;">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
     </svg>
@@ -1301,6 +1309,7 @@ function setActiveNavForMode() {
 function showJournalView() {
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('journalView').style.display = 'flex';
+  document.getElementById('searchBar').style.display = ''; // search only where there's content
 }
 
 function goHome() {
@@ -1311,6 +1320,7 @@ function goHome() {
   setActiveNav('');
   document.getElementById('journalView').style.display = 'none';
   document.getElementById('welcomeScreen').style.display = 'flex';
+  document.getElementById('searchBar').style.display = 'none';
 }
 
 // ─────────────────────────────────────────────
