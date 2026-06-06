@@ -32,6 +32,17 @@ feeds from major European journals in the browser via CORS proxies.
 
 Open `index.html` in any modern browser. No build step, no server required.
 
+### Install to your phone's home screen
+
+The app ships a web manifest (`manifest.webmanifest`) and icons
+(`icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`), so it
+installs as a standalone PWA:
+
+- **iPhone (Safari):** Share → *Add to Home Screen*.
+- **Android (Chrome):** menu → *Install app* / *Add to Home screen*.
+
+The icons must sit next to `index.html` when served (e.g. GitHub Pages).
+
 ## Configuration
 
 - **Social links:** edit the `href="…"` placeholders in the header (`#social-x`,

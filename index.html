@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EuroPress — European News Reader</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e0e0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EuroPress">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
 
@@ -74,7 +83,9 @@
     letter-spacing: -0.3px;
     cursor: pointer;
   }
+  .logo { display: flex; align-items: center; }
   .logo span { color: var(--accent); font-style: normal; }
+  .logo-img { width: 26px; height: 26px; border-radius: 7px; margin-right: 9px; flex-shrink: 0; }
 
   .search-bar {
     flex: 1;
@@ -136,6 +147,17 @@
     transition: border-color 0.15s;
   }
   .lang-select:hover { border-color: var(--accent); }
+
+  /* refresh + language stacked in two rows so refresh isn't pushed to the edge */
+  .controls { display: flex; flex-direction: column; gap: 5px; align-items: stretch; }
+  .controls .lang-select,
+  .controls .refresh-btn {
+    width: 100%;
+    padding: 4px 14px;
+    font-size: 0.68rem;
+    justify-content: center;
+  }
+  .controls .refresh-btn svg { width: 11px; height: 11px; }
 
   .refresh-btn {
     background: rgba(200,240,96,0.08);
@@ -576,6 +598,14 @@
     animation: fadeUp 0.5s ease both;
   }
 
+  .welcome-logo {
+    width: 88px;
+    height: 88px;
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 2px;
+  }
+
   .eyebrow {
     font-size: 0.65rem;
     text-transform: uppercase;
@@ -843,7 +873,7 @@
 <body>
 
 <header>
-  <div class="logo" onclick="goHome()">Euro<span>Press</span></div>
+  <div class="logo" onclick="goHome()"><img src="icon.svg" alt="" class="logo-img">Euro<span>Press</span></div>
   <div class="search-bar">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -864,17 +894,19 @@
       </a>
     </div>
     <div class="social-divider"></div>
-    <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="Language / Lingua / Kieli" aria-label="Language">
-      <option value="it">🇮🇹 Italiano</option>
-      <option value="en">🇬🇧 English</option>
-      <option value="fi">🇫🇮 Suomi</option>
-    </select>
-    <button class="refresh-btn" id="refreshBtn" onclick="refreshFeed()">
-      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-        <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-      </svg>
-      <span id="refreshLabel">Refresh</span>
-    </button>
+    <div class="controls">
+      <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="Language / Lingua / Kieli" aria-label="Language">
+        <option value="it">🇮🇹 Italiano</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="fi">🇫🇮 Suomi</option>
+      </select>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshFeed()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        <span id="refreshLabel">Refresh</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -1234,6 +1266,7 @@ function renderSidebar() {
 
 function renderWelcome() {
   document.getElementById('welcomeScreen').innerHTML = `
+    <img src="icon.svg" alt="EuroPress" class="welcome-logo">
     <div class="eyebrow">${t('welcomeEyebrow')}</div>
     <h2>Euro<span>Press</span></h2>
     <p>${t('welcomeLead')}</p>
@@ -1537,7 +1570,8 @@ function parseRSS(xml, journal) {
       journalId: journal.id, srcLang: journal.lang, translated: false,
       fullParas: hasFull ? fullParas : [], hasFull
     };
-  }).filter(a => a.rawTitle);
+  }).filter(a => a.rawTitle)
+    .sort((a, b) => effDate(b) - effDate(a)); // newest first within every feed/section
 }
 
 function cloneArts(arts) { return arts.map(a => Object.assign({}, a)); }
