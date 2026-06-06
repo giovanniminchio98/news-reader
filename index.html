@@ -348,32 +348,36 @@
   }
 
   /* ── CATEGORY TABS ── */
+  /* category chips wrap onto multiple lines — every category visible, no side-scroll */
   .cat-tabs {
     display: flex;
-    gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 16px;
   }
-  .cat-tabs::-webkit-scrollbar { display: none; }
 
   .cat-tab {
-    padding: 9px 18px;
-    border: none;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 50px;
     background: transparent;
     cursor: pointer;
     font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 400;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--muted);
     white-space: nowrap;
-    transition: color 0.15s;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
-  .cat-tab:hover { color: var(--text); }
-  .cat-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+  .cat-tab:hover { color: var(--text); border-color: #3a3a3a; }
+  .cat-tab.active {
+    color: var(--accent);
+    border-color: rgba(200,240,96,0.4);
+    background: rgba(200,240,96,0.08);
+    font-weight: 500;
+  }
 
   /* ── ARTICLE GRID ── */
   .articles-area { padding: 24px 28px; flex: 1; overflow-y: auto; }
