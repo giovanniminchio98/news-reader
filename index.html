@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EuroPress — European News Reader</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:      #0e0e0e;
+    --surface: #161616;
+    --card:    #1c1c1c;
+    --border:  #2a2a2a;
+    --accent:  #c8f060;
+    --accent2: #f0b860;
+    --accent3: #60c8f0;
+    --text:    #f0ede8;
+    --muted:   #888;
+    --bull:    #c8f060;
+    --bear:    #ff6b6b;
+    --radius:  16px;
+    --radius-sm: 10px;
+    --shadow:  0 2px 16px rgba(0,0,0,0.4);
+    --shadow-hover: 0 6px 32px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(200,240,96,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 10% 90%, rgba(96,200,240,0.04) 0%, transparent 60%);
+  }
+
+  header, .app-body, .sidebar, .main { position: relative; z-index: 1; }
+
+  /* ── TOP BAR ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.4rem;
+    color: var(--text);
+    white-space: nowrap;
+    letter-spacing: -0.3px;
+  }
+  .logo span { color: var(--accent); font-style: normal; }
+
+  .search-bar {
+    flex: 1;
+    max-width: 520px;
+    position: relative;
+  }
+  .search-bar input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 8px 18px 8px 40px;
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-bar input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200,240,96,0.1);
+  }
+  .search-bar svg {
+    position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%); color: var(--muted);
+  }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .refresh-btn {
+    background: rgba(200,240,96,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(200,240,96,0.25);
+    border-radius: 50px;
+    padding: 7px 16px;
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s, transform 0.1s;
+    text-transform: uppercase;
+  }
+  .refresh-btn:hover { background: rgba(200,240,96,0.14); transform: scale(1.02); }
+  .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% center; }
+    to   { background-position: -200% center; }
+  }
+
+  /* ── LAYOUT ── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 58px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 10px 8px;
+  }
+  .sidebar-label::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 1px;
+    background: var(--border);
+    margin-top: 6px;
+  }
+
+  .journal-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .journal-btn:hover { background: var(--card); color: var(--text); border-color: var(--border); }
+  .journal-btn.active {
+    background: rgba(200,240,96,0.07);
+    color: var(--accent);
+    border-color: rgba(200,240,96,0.2);
+    font-weight: 500;
+  }
+
+  .journal-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 500;
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── JOURNAL HEADER ── */
+  .journal-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    animation: fadeDown 0.3s ease both;
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+    margin-bottom: 14px;
+  }
+  .back-btn:hover {
+    background: var(--card);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .back-btn svg { flex-shrink: 0; }
+
+  .journal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .journal-title h1 {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.3rem;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .journal-title .flag { font-size: 1.1rem; font-style: normal; }
+  .journal-subtitle {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── CATEGORY TABS ── */
+  .cat-tabs {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+
+  .cat-tab {
+    padding: 9px 18px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: color 0.15s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .cat-tab:hover { color: var(--text); }
+  .cat-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  /* ── ARTICLE GRID ── */
+  .articles-area { padding: 24px 28px; flex: 1; overflow-y: auto; }
+
+  .articles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  .article-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: fadeUp 0.35s ease both;
+    color: inherit;
+    user-select: none;
+  }
+  .article-card.clickable { cursor: pointer; }
+  .article-card.clickable:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-color: #3a3a3a;
+  }
+  .article-card.clickable:active { transform: scale(0.99); }
+
+  .card-category-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    width: fit-content;
+    border: 1px solid rgba(200,240,96,0.25);
+    background: rgba(200,240,96,0.07);
+    color: var(--accent);
+  }
+
+  .card-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .card-desc {
+    font-size: 0.76rem;
+    color: var(--muted);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .card-meta .date {
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .card-meta .read-more {
+    margin-left: auto;
+    font-size: 0.68rem;
+    color: var(--accent3);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* ── LOADING BOX ── */
+  .load-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 36px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-width: 280px;
+    max-width: 360px;
+    width: 90%;
+    box-shadow: var(--shadow);
+  }
+  .load-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+  }
+  .load-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+  .load-bar-track {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .load-bar-fill {
+    height: 100%;
+    width: 5%;
+    background: var(--accent);
+    border-radius: 99px;
+    box-shadow: 0 0 8px rgba(200,240,96,0.4);
+    transition: width 1.2s cubic-bezier(.4,0,.2,1), background 0.4s;
+  }
+  .load-sub {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── STATE ── */
+  .state-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 60px 20px;
+    gap: 14px;
+    color: var(--muted);
+  }
+  .state-view svg { opacity: 0.3; }
+  .state-view p { font-size: 0.82rem; letter-spacing: 0.02em; }
+
+  .spinner-ring {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .error-msg {
+    background: rgba(255,107,107,0.08);
+    color: var(--bear);
+    border: 1px solid rgba(255,107,107,0.25);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    font-size: 0.78rem;
+    max-width: 420px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .articles-count {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── WELCOME ── */
+  .welcome-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 60px 24px;
+    gap: 18px;
+    text-align: center;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .eyebrow {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+  }
+
+  .welcome-screen h2 {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .welcome-screen h2 span { color: var(--accent); font-style: normal; }
+
+  .welcome-screen p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    max-width: 380px;
+    line-height: 1.7;
+  }
+
+  .journal-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .journal-pill {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    letter-spacing: 0.02em;
+  }
+  .journal-pill:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,240,96,0.06);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .articles-grid { grid-template-columns: 1fr; }
+    .articles-area { padding: 14px 16px; }
+    header { padding: 0 16px; }
+    .journal-header { padding: 14px 16px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Euro<span>Press</span></div>
+  <div class="search-bar">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Search articles…" oninput="filterArticles()">
+  </div>
+  <div class="header-right">
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshFeed()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<div class="app-body">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Journals</div>
+    <div id="journalList"></div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main" id="mainArea">
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="eyebrow">● Live European Press</div>
+      <h2>Euro<span>Press</span></h2>
+      <p>Choose a journal to start reading. Europe's top free sources, fetched live.</p>
+      <div class="journal-pills" id="quickPills"></div>
+    </div>
+
+    <div id="journalView" style="display:none; flex-direction:column; flex:1;">
+      <div class="journal-header" id="journalHeader"></div>
+      <div class="articles-area" id="articlesArea">
+        <div class="state-view" id="stateView">
+          <div class="spinner-ring"></div>
+          <p>Loading articles…</p>
+        </div>
+        <div id="articlesList" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// JOURNAL CONFIG
+// ─────────────────────────────────────────────
+const JOURNALS = [
+  {
+    id: 'guardian',
+    name: 'The Guardian',
+    flag: '🇬🇧',
+    subtitle: 'London · Est. 1821',
+    color: '#1a73e8',
+    colorSoft: '#deeaf7',
+    abbr: 'GU',
+    categories: [
+      { label: 'Latest',    url: 'https://www.theguardian.com/world/rss' },
+      { label: 'World',     url: 'https://www.theguardian.com/world/rss' },
+      { label: 'Politics',  url: 'https://www.theguardian.com/politics/rss' },
+      { label: 'Business',  url: 'https://www.theguardian.com/uk/business/rss' },
+      { label: 'Tech',      url: 'https://www.theguardian.com/technology/rss' },
+      { label: 'Science',   url: 'https://www.theguardian.com/science/rss' },
+      { label: 'Culture',   url: 'https://www.theguardian.com/culture/rss' },
+    ]
+  },
+  {
+    id: 'bbc',
+    name: 'BBC News',
+    flag: '🇬🇧',
+    subtitle: 'London · Est. 1927',
+    color: '#e05c5c',
+    colorSoft: '#fce8e8',
+    abbr: 'BBC',
+    categories: [
+      { label: 'Latest',    url: 'https://feeds.bbci.co.uk/news/rss.xml' },
+      { label: 'World',     url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
+      { label: 'Europe',    url: 'https://feeds.bbci.co.uk/news/world/europe/rss.xml' },
+      { label: 'Business',  url: 'https://feeds.bbci.co.uk/news/business/rss.xml' },
+      { label: 'Tech',      url: 'https://feeds.bbci.co.uk/news/technology/rss.xml' },
+      { label: 'Science',   url: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml' },
+      { label: 'Health',    url: 'https://feeds.bbci.co.uk/news/health/rss.xml' },
+    ]
+  },
+  {
+    id: 'dw',
+    name: 'Deutsche Welle',
+    flag: '🇩🇪',
+    subtitle: 'Bonn · Est. 1953',
+    color: '#7c6fcd',
+    colorSoft: '#ede5f9',
+    abbr: 'DW',
+    categories: [
+      { label: 'Latest',    url: 'https://rss.dw.com/xml/rss-en-all' },
+      { label: 'World',     url: 'https://rss.dw.com/xml/rss-en-world' },
+      { label: 'Europe',    url: 'https://rss.dw.com/xml/rss-en-eu' },
+      { label: 'Business',  url: 'https://rss.dw.com/xml/rss-en-bus' },
+      { label: 'Science',   url: 'https://rss.dw.com/xml/rss-en-sci' },
+      { label: 'Culture',   url: 'https://rss.dw.com/xml/rss-en-cul' },
+      { label: 'Sports',    url: 'https://rss.dw.com/xml/rss-en-spo' },
+    ]
+  },
+  {
+    id: 'france24',
+    name: 'France 24',
+    flag: '🇫🇷',
+    subtitle: 'Paris · Est. 2006',
+    color: '#e8a03a',
+    colorSoft: '#fdf3d6',
+    abbr: 'F24',
+    categories: [
+      { label: 'Latest',    url: 'https://www.france24.com/en/rss' },
+      { label: 'World',     url: 'https://www.france24.com/en/world/rss' },
+      { label: 'Europe',    url: 'https://www.france24.com/en/europe/rss' },
+      { label: 'Business',  url: 'https://www.france24.com/en/business/rss' },
+      { label: 'France',    url: 'https://www.france24.com/en/france/rss' },
+      { label: 'Culture',   url: 'https://www.france24.com/en/culture/rss' },
+      { label: 'Sports',    url: 'https://www.france24.com/en/sports/rss' },
+    ]
+  },
+  {
+    id: 'euronews',
+    name: 'Euronews',
+    flag: '🇪🇺',
+    subtitle: 'Lyon · Est. 1993',
+    color: '#3aad7d',
+    colorSoft: '#daf2e7',
+    abbr: 'EN',
+    categories: [
+      { label: 'Latest',    url: 'https://www.euronews.com/rss?format=mrss&level=theme&name=news' },
+      { label: 'World',     url: 'https://www.euronews.com/rss?format=mrss&level=theme&name=news' },
+      { label: 'Europe',    url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=europe' },
+      { label: 'Business',  url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=business' },
+      { label: 'Tech',      url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=next' },
+      { label: 'Culture',   url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=culture' },
+      { label: 'Green',     url: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=green' },
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentJournal = null;
+let currentCatIdx = 0;
+let allArticles = [];
+let searchQuery = '';
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function goHome() {
+  currentJournal = null;
+  allArticles = [];
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.journal-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('journalView').style.display = 'none';
+  document.getElementById('welcomeScreen').style.display = 'flex';
+}
+
+function init() {
+  renderSidebar();
+  renderQuickPills();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('journalList');
+  list.innerHTML = JOURNALS.map(j => `
+    <button class="journal-btn" id="jbtn-${j.id}" onclick="selectJournal('${j.id}')">
+      <span class="journal-icon" style="background:${j.colorSoft};color:${j.color}">${j.abbr}</span>
+      <span>${j.name}</span>
+    </button>
+  `).join('');
+}
+
+function renderQuickPills() {
+  const pills = document.getElementById('quickPills');
+  pills.innerHTML = JOURNALS.map(j => `
+    <button class="journal-pill" onclick="selectJournal('${j.id}')">
+      <span>${j.flag}</span> ${j.name}
+    </button>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// JOURNAL SELECTION
+// ─────────────────────────────────────────────
+function selectJournal(id) {
+  currentJournal = JOURNALS.find(j => j.id === id);
+  currentCatIdx = 0;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+
+  // sidebar active
+  document.querySelectorAll('.journal-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('jbtn-' + id).classList.add('active');
+
+  // show journal view
+  document.getElementById('welcomeScreen').style.display = 'none';
+  const jv = document.getElementById('journalView');
+  jv.style.display = 'flex';
+
+  renderJournalHeader();
+  loadFeed(0);
+}
+
+function renderJournalHeader() {
+  const j = currentJournal;
+  const header = document.getElementById('journalHeader');
+  const tabs = j.categories.map((cat, i) => `
+    <button class="cat-tab ${i === currentCatIdx ? 'active' : ''}" 
+            id="cattab-${i}" onclick="loadFeed(${i})">${cat.label}</button>
+  `).join('');
+
+  header.innerHTML = `
+    <button class="back-btn" onclick="goHome()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+      All Journals
+    </button>
+    <div class="journal-title">
+      <span class="flag">${j.flag}</span>
+      <div>
+        <h1>${j.name}</h1>
+        <div class="journal-subtitle">${j.subtitle}</div>
+      </div>
+    </div>
+    <div class="cat-tabs">${tabs}</div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// FEED LOADING — multi-proxy fallback chain
+// ─────────────────────────────────────────────
+const PROXIES = [
+  url => ({ mode: 'json',   fetch: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}` }),
+  url => ({ mode: 'raw',    fetch: `https://corsproxy.io/?url=${encodeURIComponent(url)}` }),
+  url => ({ mode: 'raw',    fetch: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` }),
+  url => ({ mode: 'direct', fetch: url }),
+];
+
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(id);
+    return res;
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+}
+
+async function fetchRSS(feedUrl) {
+  for (const proxyFn of PROXIES) {
+    const { mode, fetch: proxyUrl } = proxyFn(feedUrl);
+    try {
+      const res = await fetchWithTimeout(proxyUrl, 9000);
+      if (!res.ok) continue;
+      let text;
+      if (mode === 'json') {
+        const data = await res.json();
+        text = data.contents;
+      } else {
+        text = await res.text();
+      }
+      if (!text || text.length < 100) continue;
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, 'text/xml');
+      const items = xml.querySelectorAll('item');
+      if (items.length === 0) continue;   // try next proxy
+      return xml;
+    } catch (e) {
+      continue; // try next proxy
+    }
+  }
+  return null;
+}
+
+async function loadFeed(catIdx) {
+  if (!currentJournal) return;
+  currentCatIdx = catIdx;
+
+  document.querySelectorAll('.cat-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === catIdx);
+  });
+
+  showLoading();
+
+  const feedUrl = currentJournal.categories[catIdx].url;
+
+  try {
+    const xml = await fetchRSS(feedUrl);
+    if (!xml) throw new Error('All proxies failed');
+    allArticles = parseRSS(xml, currentJournal);
+    hideLoading();
+    renderArticles();
+  } catch (err) {
+    hideLoading(); showError('Could not load this feed after trying multiple sources. Please check your internet connection and try again, or pick another category.');
+  }
+}
+
+function parseRSS(xml, journal) {
+  const items = Array.from(xml.querySelectorAll('item'));
+  return items.slice(0, 40).map(item => {
+    const title   = item.querySelector('title')?.textContent?.trim() || '';
+    const desc    = item.querySelector('description')?.textContent?.replace(/<[^>]*>/g, '')?.trim() || '';
+    const link    = item.querySelector('link')?.textContent?.trim() || '#';
+    const pubDate = item.querySelector('pubDate')?.textContent?.trim() || '';
+    const cat     = item.querySelector('category')?.textContent?.trim() || '';
+    return { title, desc, link, pubDate, cat };
+  }).filter(a => a.title);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 60000);
+    if (diff < 1)   return 'Just now';
+    if (diff < 60)  return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff/60)}h ago`;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  } catch { return ''; }
+}
+
+// ─────────────────────────────────────────────
+// RENDER ARTICLES
+// ─────────────────────────────────────────────
+function renderArticles() {
+  const j = currentJournal;
+  const sv = document.getElementById('stateView');
+  const al = document.getElementById('articlesList');
+  sv.style.display = 'none';
+  al.style.display = 'block';
+
+  const q = searchQuery.toLowerCase();
+  const filtered = q
+    ? allArticles.filter(a => a.title.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
+    : allArticles;
+
+  if (filtered.length === 0) {
+    al.innerHTML = `<div class="state-view" style="display:flex">
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <p>${q ? 'No articles match your search.' : 'No articles found for this category.'}</p>
+    </div>`;
+    return;
+  }
+
+  al.innerHTML = `
+    <div class="articles-count">${filtered.length} article${filtered.length !== 1 ? 's' : ''}</div>
+    <div class="articles-grid">
+      ${filtered.map((a, i) => articleCard(a, j, i)).join('')}
+    </div>
+  `;
+}
+
+function articleCard(a, j, i) {
+  const delay = Math.min(i * 0.04, 0.5);
+  const badge = a.cat
+    ? `<span class="card-category-badge" style="background:${j.colorSoft};color:${j.color}">${a.cat.slice(0,28)}</span>`
+    : '';
+  const safeLink = a.link.startsWith('http') ? a.link : null;
+  const clickable = safeLink ? `onclick="window.open('${safeLink.replace(/'/g,"\\'")}','_blank','noopener')" role="link" tabindex="0"` : '';
+  return `
+    <div class="article-card ${safeLink ? 'clickable' : ''}" ${clickable} style="animation-delay:${delay}s">
+      ${badge}
+      <div class="card-title">${escHtml(a.title)}</div>
+      ${a.desc ? `<div class="card-desc">${escHtml(a.desc.slice(0,180))}</div>` : ''}
+      <div class="card-meta">
+        <span class="date">${formatDate(a.pubDate)}</span>
+        ${safeLink ? '<span class="read-more">Open article ↗</span>' : ''}
+      </div>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────
+// STATES
+// ─────────────────────────────────────────────
+let loadingInterval = null;
+
+function showLoading() {
+  const sv = document.getElementById('stateView');
+  const al = document.getElementById('articlesList');
+  al.style.display = 'none';
+  sv.style.display = 'flex';
+
+  const steps = [
+    'Connecting to feed…',
+    'Fetching articles…',
+    'Parsing content…',
+    'Almost there…',
+  ];
+  let step = 0;
+
+  sv.innerHTML = `
+    <div class="load-box">
+      <div class="load-spinner"></div>
+      <div class="load-label" id="loadLabel">${steps[0]}</div>
+      <div class="load-bar-track"><div class="load-bar-fill" id="loadBarFill"></div></div>
+      <div class="load-sub" id="loadSub">Trying available sources — this may take a few seconds</div>
+    </div>`;
+
+  clearInterval(loadingInterval);
+  let pct = 5;
+  loadingInterval = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 18, 85);
+    const fill = document.getElementById('loadBarFill');
+    const label = document.getElementById('loadLabel');
+    if (fill) fill.style.width = pct + '%';
+    if (label && step < steps.length - 1) {
+      step++;
+      label.textContent = steps[step];
+    }
+  }, 1400);
+}
+
+function hideLoading() {
+  clearInterval(loadingInterval);
+  const fill = document.getElementById('loadBarFill');
+  if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--accent-green)'; }
+}
+
+function showError(msg) {
+  const sv = document.getElementById('stateView');
+  const al = document.getElementById('articlesList');
+  al.style.display = 'none';
+  sv.style.display = 'flex';
+  sv.innerHTML = `<div class="error-msg">⚠️ ${msg}</div>`;
+}
+
+// ─────────────────────────────────────────────
+// SEARCH & REFRESH
+// ─────────────────────────────────────────────
+function filterArticles() {
+  searchQuery = document.getElementById('searchInput').value;
+  if (allArticles.length) renderArticles();
+}
+
+function refreshFeed() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  const done = () => btn.classList.remove('spinning');
+  if (currentJournal) {
+    loadFeed(currentCatIdx).then(done).catch(done);
+  } else {
+    setTimeout(done, 600);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
