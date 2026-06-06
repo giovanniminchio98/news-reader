@@ -1438,9 +1438,15 @@ async function loadAggregated(kind, feedSelector, force) {
     } catch { return []; }
   });
   const results = await Promise.allSettled(tasks);
-  let merged = [];
-  results.forEach(r => { if (r.status === 'fulfilled') merged = merged.concat(r.value); });
-  merged.sort((a, b) => tdate(b.pubDate) - tdate(a.pubDate));
+  // one list per journal (each feed is already newest-first)
+  let lists = results.filter(r => r.status === 'fulfilled').map(r => r.value).filter(l => l.length);
+  // drop items that carry a real date older than the freshness window
+  let fresh = lists.map(l => l.filter(a => !isStale(a)));
+  if (!fresh.some(l => l.length)) fresh = lists; // safety: never blank the page
+  // round-robin interleave so the newest from EVERY source surfaces first,
+  // then a stable sort by date keeps genuinely-newer items on top
+  let merged = interleave(fresh);
+  merged.sort((a, b) => effDate(b) - effDate(a));
   aggCache.set(ak, merged);
   allArticles = merged;
   hideLoading();
@@ -1479,7 +1485,11 @@ async function proxyFetchText(url) {
   return null;
 }
 
+// append a cache-buster so proxies/CDNs return the live feed, not a cached one
+function bust(url) { return url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now(); }
+
 async function fetchRSS(feedUrl) {
+  feedUrl = bust(feedUrl);
   for (const proxyFn of PROXIES) {
     const { mode, fetch: proxyUrl } = proxyFn(feedUrl);
     try {
@@ -1509,7 +1519,9 @@ function parseRSS(xml, journal) {
     let desc = (txt(node, 'description') || txt(node, 'summary')).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     let link = txt(node, 'link');
     if (!link) { const l = node.querySelector('link'); if (l) link = l.getAttribute('href') || ''; }
-    const pubDate = txt(node, 'pubDate') || txt(node, 'published') || txt(node, 'updated') || txt(node, 'date');
+    let pubDate = txt(node, 'pubDate') || txt(node, 'published') || txt(node, 'updated');
+    if (!pubDate) { const dc = node.getElementsByTagName('dc:date')[0]; if (dc) pubDate = dc.textContent.trim(); }
+    if (!pubDate) pubDate = txt(node, 'date');
     const cat = txt(node, 'category');
 
     let fullHtml = '';
@@ -1541,7 +1553,18 @@ function htmlToParas(html) {
   return t.split(/\n{2,}/).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 1);
 }
 
-function tdate(s) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
+// articles older than this (when they DO carry a date) are dropped from aggregated views
+const STALE_DAYS = 10;
+// effective sort timestamp: real date if parseable, else "now" so fresh-but-undated
+// items stay on top instead of sinking below genuinely old ones
+function effDate(a) { const t = Date.parse(a.pubDate); return isNaN(t) ? Date.now() : t; }
+function isStale(a) { const t = Date.parse(a.pubDate); return !isNaN(t) && (Date.now() - t) > STALE_DAYS * 86400000; }
+// round-robin merge of several already-sorted lists (rank 0 from each, then rank 1, …)
+function interleave(lists) {
+  const out = []; let i = 0, more = true;
+  while (more) { more = false; for (const l of lists) { if (i < l.length) { out.push(l[i]); more = true; } } i++; }
+  return out;
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
