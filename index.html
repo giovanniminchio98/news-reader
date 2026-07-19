@@ -177,9 +177,13 @@
     cursor: default;
     user-select: none;
   }
-  .update-chip .upd-ic { color: var(--accent); flex-shrink: 0; }
-  .update-chip.updating { color: var(--accent); border-color: rgba(200,240,96,0.3); }
-  .update-chip.updating .upd-ic { animation: spin 0.9s linear infinite; }
+  .update-chip::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
 
   .refresh-btn {
     background: rgba(200,240,96,0.08);
@@ -944,9 +948,6 @@
         <option value="fi">🇫🇮 Suomi</option>
       </select>
       <div class="update-chip" id="updateChip" title="">
-        <svg class="upd-ic" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-          <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
         <span id="updText">—</span>
       </div>
     </div>
@@ -1028,7 +1029,7 @@ const I18N = {
     summaryLabel:'Riassunto',
     textUnavailable:'testo completo non disponibile; ecco il riassunto. Apri l\'originale per l\'articolo intero.',
     nextUpdate:x=>`Aggiorna tra ${x}`, updating:'Aggiornamento…', waiting:'In attesa…',
-    updatedAgo:x=>`Aggiornato ${x} fa`, justNow:'ora',
+    updatedAgo:x=>`Aggiornato ${x} fa`, updatedAt:x=>`Aggiornato alle ${x}`, justNow:'ora',
     snapshotMissing:'Nessun aggiornamento ancora. L\'app si aggiorna ogni 30 minuti — riprova tra poco.',
     cats:{ Latest:'Ultime', World:'Mondo', Europe:'Europa', Politics:'Politica', Business:'Economia', Tech:'Tecnologia', Science:'Scienza', Culture:'Cultura', Sports:'Sport' },
     langNames:{ it:'italiano', en:'inglese', fr:'francese', es:'spagnolo', de:'tedesco', fi:'finlandese' },
@@ -1055,7 +1056,7 @@ const I18N = {
     summaryLabel:'Summary',
     textUnavailable:'full text unavailable; showing the summary. Open the original for the complete story.',
     nextUpdate:x=>`Next update in ${x}`, updating:'Updating…', waiting:'Waiting…',
-    updatedAgo:x=>`Updated ${x} ago`, justNow:'just now',
+    updatedAgo:x=>`Updated ${x} ago`, updatedAt:x=>`Updated at ${x}`, justNow:'just now',
     snapshotMissing:'No update yet. The app refreshes every 30 minutes — check back shortly.',
     cats:{ Latest:'Latest', World:'World', Europe:'Europe', Politics:'Politics', Business:'Business', Tech:'Tech', Science:'Science', Culture:'Culture', Sports:'Sports' },
     langNames:{ it:'Italian', en:'English', fr:'French', es:'Spanish', de:'German', fi:'Finnish' },
@@ -1082,7 +1083,7 @@ const I18N = {
     summaryLabel:'Tiivistelmä',
     textUnavailable:'koko tekstiä ei ole saatavilla; näytetään tiivistelmä. Avaa alkuperäinen koko juttua varten.',
     nextUpdate:x=>`Päivitys ${x}`, updating:'Päivitetään…', waiting:'Odotetaan…',
-    updatedAgo:x=>`Päivitetty ${x} sitten`, justNow:'juuri nyt',
+    updatedAgo:x=>`Päivitetty ${x} sitten`, updatedAt:x=>`Päivitetty klo ${x}`, justNow:'juuri nyt',
     snapshotMissing:'Ei vielä päivitystä. Sovellus päivittyy 30 minuutin välein — palaa pian.',
     cats:{ Latest:'Uusimmat', World:'Maailma', Europe:'Eurooppa', Politics:'Politiikka', Business:'Talous', Tech:'Teknologia', Science:'Tiede', Culture:'Kulttuuri', Sports:'Urheilu' },
     langNames:{ it:'italia', en:'englanti', fr:'ranska', es:'espanja', de:'saksa', fi:'suomi' },
@@ -1510,26 +1511,23 @@ function filterArticles() {
 // ─────────────────────────────────────────────
 // COUNTDOWN to next scheduled fetch (+ auto-pick-up when it lands)
 // ─────────────────────────────────────────────
-function startClock() { clearInterval(clockTimer); tickClock(); clockTimer = setInterval(tickClock, 1000); }
-function mmss(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+function startClock() { clearInterval(clockTimer); tickClock(); clockTimer = setInterval(tickClock, 30000); }
 function agoStr(ms) { const m = Math.floor(ms / 60000); if (m < 1) return t('justNow'); if (m < 60) return `${m}m`; return `${Math.floor(m / 60)}h`; }
+function hhmm(ts) {
+  const loc = uiLang === 'it' ? 'it-IT' : uiLang === 'fi' ? 'fi-FI' : 'en-GB';
+  return new Date(ts).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
+}
 
 function tickClock() {
   const chip = document.getElementById('updateChip');
   const txt = document.getElementById('updText');
   if (!chip || !txt) return;
-  if (!SNAP || !SNAP.ts) { chip.classList.remove('updating'); txt.textContent = t('waiting'); chip.title = ''; return; }
-  const next = SNAP.ts + (SNAP.intervalMin || 30) * 60000;
-  const rem = next - Date.now();
+  if (!SNAP || !SNAP.ts) { txt.textContent = t('waiting'); chip.title = ''; return; }
+  // show the actual time of the last snapshot; relative time in the tooltip
+  txt.textContent = t('updatedAt', hhmm(SNAP.ts));
   chip.title = t('updatedAgo', agoStr(Date.now() - SNAP.ts));
-  if (rem > 1000) {
-    chip.classList.remove('updating');
-    txt.textContent = t('nextUpdate', mmss(rem));
-  } else {
-    chip.classList.add('updating');
-    txt.textContent = t('updating');
-    pollSnapshot();
-  }
+  // once the interval has elapsed, quietly check for a newer snapshot (no visible "updating")
+  if (Date.now() > SNAP.ts + (SNAP.intervalMin || 30) * 60000) pollSnapshot();
 }
 
 // after the scheduled time passes, poll the static JSON until a newer snapshot appears
