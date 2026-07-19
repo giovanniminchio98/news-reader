@@ -6,8 +6,9 @@ import { XMLParser } from 'fast-xml-parser';
 import fs from 'node:fs/promises';
 import { JOURNALS, CAT_ORDER, UI_LANGS } from './journals.mjs';
 
-const PER_FEED   = 22;     // items kept per feed
-const FULL_CAP   = 8000;   // max chars of full text translated per article
+const PER_FEED   = 18;     // items kept per feed
+const FULL_TXT_N = 6;      // translate full text for the top N items per feed (native stays free for all)
+const FULL_CAP   = 7000;   // max chars of full text per article
 const CACHE_FILE = 'data/.tcache.json';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', cdataPropName: '__cdata', trimValues: true });
@@ -109,13 +110,14 @@ async function translateLines(lines, sl, tl) {
     if (!b.length) return;
     const res = await gtx(b.join('\n'), sl, tl);
     const parts = res != null ? res.split('\n') : null;
+    const good = parts && parts.length === b.length;
     b.forEach((l, j) => {
-      const val = (parts && parts.length === b.length) ? parts[j] : l;
+      const val = good ? parts[j] : l;          // fall back to original on failure
       out[bi[j]] = val;
-      tcache[`${sl}>${tl}:${l}`] = val;
+      if (good) tcache[`${sl}>${tl}:${l}`] = val; // but NEVER cache a fallback — retry it next run
     });
     b = []; bi = []; size = 0;
-    await sleep(250);
+    if (good) await sleep(200);
   };
   for (let j = 0; j < need.length; j++) {
     const l = need[j];
@@ -154,7 +156,13 @@ async function main() {
         for (let i = 0; i < arts.length; i++) {
           const a = arts[i];
           let f;
-          if (a.fullParas.length) { const tf = await translateLines(a.fullParas, j.lang, L); if (tf && tf.length) f = tf; }
+          if (a.fullParas.length) {
+            if (j.lang === L) f = a.fullParas;                 // native language: full text is free
+            else if (i < FULL_TXT_N) {                          // others: translate only the top N
+              const tf = await translateLines(a.fullParas, j.lang, L);
+              if (tf && tf.length) f = tf;
+            }
+          }
           outArr.push({
             t: tT[i] || a.title, d: tD[i] || a.desc, l: a.link, p: a.pubDate, c: a.cat, s: j.lang,
             ...(j.lang !== L ? { o: a.title } : {}),
