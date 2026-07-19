@@ -1,0 +1,63 @@
+name: Update news snapshot & deploy
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 minutes (UTC)
+  workflow_dispatch:          # manual "Run workflow" button
+  push:
+    branches: [ main ]        # redeploy when the app itself changes
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore translation cache
+        uses: actions/cache@v4
+        with:
+          path: data/.tcache.json
+          key: tcache-${{ github.run_id }}
+          restore-keys: |
+            tcache-
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+
+      - name: Build snapshot (fetch + translate all feeds)
+        run: npm run build:snapshot
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/data
+          cp index.html manifest.webmanifest icon.svg icon-192.png icon-512.png apple-touch-icon.png _site/
+          cp data/snapshot.*.json _site/data/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

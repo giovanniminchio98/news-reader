@@ -1,0 +1,12 @@
+{
+  "name": "news-reader-builder",
+  "private": true,
+  "type": "module",
+  "description": "Snapshot builder for the EuroPress news reader (runs in CI, not shipped to the browser).",
+  "scripts": {
+    "build:snapshot": "node scripts/build-snapshot.mjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.0"
+  }
+}

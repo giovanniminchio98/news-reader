@@ -13,8 +13,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EuroPress">
-<!-- article text extraction (reader mode); falls back to a heuristic if it can't load -->
-<script defer src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
 
@@ -161,6 +159,27 @@
     justify-content: center;
   }
   .controls .refresh-btn svg { width: 11px; height: 11px; }
+
+  /* countdown to the next scheduled fetch (replaces manual refresh) */
+  .update-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    justify-content: center;
+    cursor: default;
+    user-select: none;
+  }
+  .update-chip .upd-ic { color: var(--accent); flex-shrink: 0; }
+  .update-chip.updating { color: var(--accent); border-color: rgba(200,240,96,0.3); }
+  .update-chip.updating .upd-ic { animation: spin 0.9s linear infinite; }
 
   .refresh-btn {
     background: rgba(200,240,96,0.08);
@@ -924,12 +943,12 @@
         <option value="en">🇬🇧 English</option>
         <option value="fi">🇫🇮 Suomi</option>
       </select>
-      <button class="refresh-btn" id="refreshBtn" onclick="refreshFeed()">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <div class="update-chip" id="updateChip" title="">
+        <svg class="upd-ic" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
           <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
         </svg>
-        <span id="refreshLabel">Refresh</span>
-      </button>
+        <span id="updText">—</span>
+      </div>
     </div>
   </div>
 </header>
@@ -963,276 +982,128 @@
 
 <script>
 // ─────────────────────────────────────────────
-// JOURNAL CONFIG
-// lang: source language of the feed (used to decide translation)
-// feeds: canonical-category → RSS URL  (journal view + aggregation)
+// JOURNAL METADATA (styling/labels). Feed URLs live in scripts/journals.mjs;
+// the app itself never fetches feeds — it reads the pre-built snapshots.
 // ─────────────────────────────────────────────
 const JOURNALS = [
-  {
-    id: 'guardian', name: 'The Guardian', flag: '🇬🇧', subtitle: 'London · 1821',
-    color: '#5aa9f0', colorSoft: 'rgba(90,169,240,0.12)', abbr: 'GU', lang: 'en',
-    feeds: {
-      Latest:   'https://www.theguardian.com/international/rss',
-      World:    'https://www.theguardian.com/world/rss',
-      Europe:   'https://www.theguardian.com/world/europe-news/rss',
-      Politics: 'https://www.theguardian.com/politics/rss',
-      Business: 'https://www.theguardian.com/uk/business/rss',
-      Tech:     'https://www.theguardian.com/technology/rss',
-      Science:  'https://www.theguardian.com/science/rss',
-      Culture:  'https://www.theguardian.com/culture/rss',
-      Sports:   'https://www.theguardian.com/uk/sport/rss',
-    }
-  },
-  {
-    id: 'bbc', name: 'BBC News', flag: '🇬🇧', subtitle: 'London · 1927',
-    color: '#e05c5c', colorSoft: 'rgba(224,92,92,0.12)', abbr: 'BBC', lang: 'en',
-    feeds: {
-      Latest:   'https://feeds.bbci.co.uk/news/rss.xml',
-      World:    'https://feeds.bbci.co.uk/news/world/rss.xml',
-      Europe:   'https://feeds.bbci.co.uk/news/world/europe/rss.xml',
-      Politics: 'https://feeds.bbci.co.uk/news/politics/rss.xml',
-      Business: 'https://feeds.bbci.co.uk/news/business/rss.xml',
-      Tech:     'https://feeds.bbci.co.uk/news/technology/rss.xml',
-      Science:  'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
-      Culture:  'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
-    }
-  },
-  {
-    id: 'dw', name: 'Deutsche Welle', flag: '🇩🇪', subtitle: 'Bonn · EN edition',
-    color: '#7c8fd6', colorSoft: 'rgba(124,143,214,0.14)', abbr: 'DW', lang: 'en',
-    feeds: {
-      Latest:   'https://rss.dw.com/xml/rss-en-all',
-      World:    'https://rss.dw.com/xml/rss-en-world',
-      Europe:   'https://rss.dw.com/xml/rss-en-eu',
-      Business: 'https://rss.dw.com/xml/rss-en-bus',
-      Science:  'https://rss.dw.com/xml/rss-en-sci',
-      Culture:  'https://rss.dw.com/xml/rss-en-cul',
-      Sports:   'https://rss.dw.com/xml/rss-en-spo',
-    }
-  },
-  {
-    id: 'france24', name: 'France 24', flag: '🇫🇷', subtitle: 'Paris · EN edition',
-    color: '#e8a03a', colorSoft: 'rgba(232,160,58,0.14)', abbr: 'F24', lang: 'en',
-    feeds: {
-      Latest:   'https://www.france24.com/en/rss',
-      World:    'https://www.france24.com/en/world/rss',
-      Europe:   'https://www.france24.com/en/europe/rss',
-      Business: 'https://www.france24.com/en/business-tech/rss',
-      Culture:  'https://www.france24.com/en/culture/rss',
-      Sports:   'https://www.france24.com/en/sport/rss',
-    }
-  },
-  {
-    id: 'euronews', name: 'Euronews', flag: '🇪🇺', subtitle: 'Lyon · EN edition',
-    color: '#3aad7d', colorSoft: 'rgba(58,173,125,0.14)', abbr: 'EN', lang: 'en',
-    feeds: {
-      Latest:   'https://www.euronews.com/rss?format=mrss&level=theme&name=news',
-      Europe:   'https://www.euronews.com/rss?format=mrss&level=vertical&name=my-europe',
-      Business: 'https://www.euronews.com/rss?format=mrss&level=vertical&name=business',
-      Tech:     'https://www.euronews.com/rss?format=mrss&level=vertical&name=next',
-      Culture:  'https://www.euronews.com/rss?format=mrss&level=vertical&name=culture',
-    }
-  },
-  {
-    id: 'repubblica', name: 'la Repubblica', flag: '🇮🇹', subtitle: 'Roma · italiano',
-    color: '#6fb0cf', colorSoft: 'rgba(111,176,207,0.14)', abbr: 'RE', lang: 'it',
-    feeds: {
-      Latest:   'https://www.repubblica.it/rss/homepage/rss2.0.xml',
-      World:    'https://www.repubblica.it/rss/esteri/rss2.0.xml',
-      Politics: 'https://www.repubblica.it/rss/politica/rss2.0.xml',
-      Business: 'https://www.repubblica.it/rss/economia/rss2.0.xml',
-      Tech:     'https://www.repubblica.it/rss/tecnologia/rss2.0.xml',
-      Science:  'https://www.repubblica.it/rss/scienze/rss2.0.xml',
-      Culture:  'https://www.repubblica.it/rss/spettacoli_e_cultura/rss2.0.xml',
-      Sports:   'https://www.repubblica.it/rss/sport/rss2.0.xml',
-    }
-  },
-  {
-    id: 'corriere', name: 'Corriere della Sera', flag: '🇮🇹', subtitle: 'Milano · italiano',
-    color: '#d3a35c', colorSoft: 'rgba(211,163,92,0.14)', abbr: 'CdS', lang: 'it',
-    feeds: {
-      Latest:   'https://xml2.corriereobjects.it/rss/homepage.xml',
-      World:    'https://xml2.corriereobjects.it/rss/esteri.xml',
-      Politics: 'https://xml2.corriereobjects.it/rss/politica.xml',
-      Business: 'https://xml2.corriereobjects.it/rss/economia.xml',
-      Tech:     'https://xml2.corriereobjects.it/rss/tecnologia.xml',
-      Science:  'https://xml2.corriereobjects.it/rss/scienze.xml',
-      Culture:  'https://xml2.corriereobjects.it/rss/cultura.xml',
-      Sports:   'https://xml2.corriereobjects.it/rss/sport.xml',
-    }
-  },
-  {
-    id: 'lemonde', name: 'Le Monde', flag: '🇫🇷', subtitle: 'Paris · français',
-    color: '#d98fb0', colorSoft: 'rgba(217,143,176,0.14)', abbr: 'LM', lang: 'fr',
-    feeds: {
-      Latest:   'https://www.lemonde.fr/rss/une.xml',
-      World:    'https://www.lemonde.fr/international/rss_full.xml',
-      Europe:   'https://www.lemonde.fr/europe/rss_full.xml',
-      Politics: 'https://www.lemonde.fr/politique/rss_full.xml',
-      Business: 'https://www.lemonde.fr/economie/rss_full.xml',
-      Tech:     'https://www.lemonde.fr/pixels/rss_full.xml',
-      Science:  'https://www.lemonde.fr/sciences/rss_full.xml',
-      Culture:  'https://www.lemonde.fr/culture/rss_full.xml',
-      Sports:   'https://www.lemonde.fr/sport/rss_full.xml',
-    }
-  },
-  {
-    id: 'elpais', name: 'El País', flag: '🇪🇸', subtitle: 'Madrid · español',
-    color: '#e0a85c', colorSoft: 'rgba(224,168,92,0.14)', abbr: 'EP', lang: 'es',
-    feeds: {
-      Latest:   'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada',
-      World:    'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada',
-      Politics: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada',
-      Business: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada',
-      Tech:     'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/tecnologia/portada',
-      Science:  'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada',
-      Culture:  'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada',
-      Sports:   'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada',
-    }
-  },
-  {
-    id: 'spiegel', name: 'Der Spiegel', flag: '🇩🇪', subtitle: 'Hamburg · deutsch',
-    color: '#cf6f6f', colorSoft: 'rgba(207,111,111,0.14)', abbr: 'SP', lang: 'de',
-    feeds: {
-      Latest:   'https://www.spiegel.de/schlagzeilen/index.rss',
-      World:    'https://www.spiegel.de/ausland/index.rss',
-      Politics: 'https://www.spiegel.de/politik/index.rss',
-      Business: 'https://www.spiegel.de/wirtschaft/index.rss',
-      Tech:     'https://www.spiegel.de/netzwelt/index.rss',
-      Science:  'https://www.spiegel.de/wissenschaft/index.rss',
-      Culture:  'https://www.spiegel.de/kultur/index.rss',
-      Sports:   'https://www.spiegel.de/sport/index.rss',
-    }
-  }
+  { id:'guardian',   name:'The Guardian',       flag:'🇬🇧', subtitle:'London · 1821',       color:'#5aa9f0', colorSoft:'rgba(90,169,240,0.12)',  abbr:'GU',  lang:'en' },
+  { id:'bbc',        name:'BBC News',           flag:'🇬🇧', subtitle:'London · 1927',       color:'#e05c5c', colorSoft:'rgba(224,92,92,0.12)',   abbr:'BBC', lang:'en' },
+  { id:'dw',         name:'Deutsche Welle',     flag:'🇩🇪', subtitle:'Bonn · EN edition',   color:'#7c8fd6', colorSoft:'rgba(124,143,214,0.14)', abbr:'DW',  lang:'en' },
+  { id:'france24',   name:'France 24',          flag:'🇫🇷', subtitle:'Paris · EN edition',  color:'#e8a03a', colorSoft:'rgba(232,160,58,0.14)',  abbr:'F24', lang:'en' },
+  { id:'euronews',   name:'Euronews',           flag:'🇪🇺', subtitle:'Lyon · EN edition',   color:'#3aad7d', colorSoft:'rgba(58,173,125,0.14)',  abbr:'EN',  lang:'en' },
+  { id:'repubblica', name:'la Repubblica',      flag:'🇮🇹', subtitle:'Roma · italiano',     color:'#6fb0cf', colorSoft:'rgba(111,176,207,0.14)', abbr:'RE',  lang:'it' },
+  { id:'corriere',   name:'Corriere della Sera',flag:'🇮🇹', subtitle:'Milano · italiano',   color:'#d3a35c', colorSoft:'rgba(211,163,92,0.14)',  abbr:'CdS', lang:'it' },
+  { id:'lemonde',    name:'Le Monde',           flag:'🇫🇷', subtitle:'Paris · français',    color:'#d98fb0', colorSoft:'rgba(217,143,176,0.14)', abbr:'LM',  lang:'fr' },
+  { id:'elpais',     name:'El País',            flag:'🇪🇸', subtitle:'Madrid · español',    color:'#e0a85c', colorSoft:'rgba(224,168,92,0.14)',  abbr:'EP',  lang:'es' },
+  { id:'spiegel',    name:'Der Spiegel',        flag:'🇩🇪', subtitle:'Hamburg · deutsch',   color:'#cf6f6f', colorSoft:'rgba(207,111,111,0.14)', abbr:'SP',  lang:'de' },
 ];
 
 const CAT_ORDER = ['Latest','World','Europe','Politics','Business','Tech','Science','Culture','Sports'];
 const AGG_CATS  = ['World','Europe','Politics','Business','Tech','Science','Culture','Sports'];
-const LIMIT_JOURNAL = 30;
-const LIMIT_AGG     = 12;
+const STALE_DAYS = 10;
 
 // ─────────────────────────────────────────────
-// I18N — UI strings + localized category labels + language names
+// I18N
 // ─────────────────────────────────────────────
 const I18N = {
   it: {
-    searchPh: 'Cerca articoli…',
-    refresh: 'Aggiorna',
-    browse: 'Esplora', latest: 'Ultime', byCategory: 'Per categoria', journals: 'Testate',
-    home: 'Home',
-    welcomeEyebrow: '● Stampa europea in diretta',
-    welcomeLead: 'Leggi le principali fonti gratuite d\'Europa, in tempo reale. Sfoglia le <b>Ultime</b> notizie di tutte le testate, esplora <b>Per categoria</b>, oppure scegli una singola testata. Le testate non in italiano vengono tradotte automaticamente.',
-    modeLatestTitle: 'Ultime', modeLatestSub: 'Tutte le testate, dalle più recenti',
-    modeCatTitle: 'Per categoria', modeCatSub: 'Aggregate da tutta Europa',
-    catTitle: 'Per categoria', catSub: 'Un argomento, aggregato da ogni testata europea',
-    latestTitle: 'Ultime', latestSub: 'Le notizie più fresche da ogni testata — dalle più recenti',
-    autoSuffix: '· tradotto automaticamente',
-    articlesCount: n => `${n} ${n === 1 ? 'articolo' : 'articoli'}`,
-    acrossJournals: ' · da più testate',
-    loadingSteps: ['Connessione ai feed…', 'Recupero articoli…', 'Traduzione in corso…', 'Quasi pronto…'],
-    translating: l => `Traduzione da ${l} all'italiano…`,
-    loadingText: 'Caricamento dell\'articolo…',
-    summaryLabel: 'Riassunto',
-    textUnavailable: 'testo completo non disponibile; ecco il riassunto. Apri l\'originale per l\'articolo intero.',
-    errFeed: 'Impossibile caricare questo feed dopo vari tentativi. Controlla la connessione e riprova, o scegli un\'altra categoria.',
-    errAgg: 'Impossibile caricare le fonti in questo momento. Riprova tra poco con Aggiorna.',
-    noMatch: 'Nessun articolo corrisponde alla ricerca.',
-    noArticles: 'Nessun articolo trovato qui.',
-    readHere: 'Leggi qui →', openLink: 'Apri link ↗',
-    translatedFrom: l => `↻ Tradotto da: ${l}`,
-    original: l => `Originale (${l}): `,
-    openOriginal: 'Apri originale ↗', close: 'Chiudi',
-    confirmTitle: 'Aprire il link esterno?',
-    confirmText: j => `Il testo completo non è disponibile nell'app per questa notizia. Si aprirà su <b>${j}</b> in una nuova scheda.`,
-    cancel: 'Annulla', okOpen: 'OK, apri link ↗',
-    cats: { Latest:'Ultime', World:'Mondo', Europe:'Europa', Politics:'Politica', Business:'Economia', Tech:'Tecnologia', Science:'Scienza', Culture:'Cultura', Sports:'Sport' },
-    langNames: { it:'italiano', en:'inglese', fr:'francese', es:'spagnolo', de:'tedesco', fi:'finlandese' }
+    searchPh:'Cerca articoli…',
+    browse:'Esplora', latest:'Ultime', byCategory:'Per categoria', journals:'Testate', home:'Home',
+    welcomeEyebrow:'● Stampa europea in diretta',
+    welcomeLead:'Leggi le principali fonti gratuite d\'Europa. Le notizie vengono raccolte e tradotte ogni 30 minuti: sfoglia le <b>Ultime</b>, esplora <b>Per categoria</b>, o scegli una testata. Le testate non in italiano sono tradotte automaticamente.',
+    modeLatestTitle:'Ultime', modeLatestSub:'Tutte le testate, dalle più recenti',
+    modeCatTitle:'Per categoria', modeCatSub:'Aggregate da tutta Europa',
+    catTitle:'Per categoria', catSub:'Un argomento, aggregato da ogni testata europea',
+    latestTitle:'Ultime', latestSub:'Le notizie più fresche da ogni testata — dalle più recenti',
+    autoSuffix:'· tradotto automaticamente',
+    articlesCount:n=>`${n} ${n===1?'articolo':'articoli'}`,
+    acrossJournals:' · da più testate',
+    errAgg:'Nessun articolo disponibile in questo momento.',
+    noMatch:'Nessun articolo corrisponde alla ricerca.',
+    noArticles:'Nessun articolo qui.',
+    readHere:'Leggi qui →',
+    translatedFrom:l=>`↻ Tradotto da: ${l}`,
+    original:l=>`Originale (${l}): `,
+    openOriginal:'Apri originale ↗', close:'Chiudi',
+    summaryLabel:'Riassunto',
+    textUnavailable:'testo completo non disponibile; ecco il riassunto. Apri l\'originale per l\'articolo intero.',
+    nextUpdate:x=>`Aggiorna tra ${x}`, updating:'Aggiornamento…', waiting:'In attesa…',
+    updatedAgo:x=>`Aggiornato ${x} fa`, justNow:'ora',
+    snapshotMissing:'Nessun aggiornamento ancora. L\'app si aggiorna ogni 30 minuti — riprova tra poco.',
+    cats:{ Latest:'Ultime', World:'Mondo', Europe:'Europa', Politics:'Politica', Business:'Economia', Tech:'Tecnologia', Science:'Scienza', Culture:'Cultura', Sports:'Sport' },
+    langNames:{ it:'italiano', en:'inglese', fr:'francese', es:'spagnolo', de:'tedesco', fi:'finlandese' },
   },
   en: {
-    searchPh: 'Search articles…',
-    refresh: 'Refresh',
-    browse: 'Browse', latest: 'Latest', byCategory: 'By Category', journals: 'Journals',
-    home: 'Home',
-    welcomeEyebrow: '● Live European Press',
-    welcomeLead: 'Read Europe\'s top free sources, fetched live. Browse the <b>Latest</b> across every journal, dive in <b>By Category</b>, or pick a single title. Papers not in your language are auto-translated.',
-    modeLatestTitle: 'Latest', modeLatestSub: 'All journals, newest first',
-    modeCatTitle: 'By Category', modeCatSub: 'Aggregated across Europe',
-    catTitle: 'By Category', catSub: 'One topic, aggregated from every journal across Europe',
-    latestTitle: 'Latest', latestSub: 'Freshest stories from every journal — newest first',
-    autoSuffix: '· auto-translated',
-    articlesCount: n => `${n} article${n === 1 ? '' : 's'}`,
-    acrossJournals: ' · across journals',
-    loadingSteps: ['Connecting to feeds…', 'Fetching articles…', 'Translating…', 'Almost there…'],
-    translating: l => `Translating from ${l} to English…`,
-    loadingText: 'Loading the article…',
-    summaryLabel: 'Summary',
-    textUnavailable: 'full text unavailable; showing the summary. Open the original for the complete story.',
-    errFeed: 'Could not load this feed after trying multiple sources. Check your connection and try again, or pick another category.',
-    errAgg: 'Could not load any sources right now. Please try Refresh in a moment.',
-    noMatch: 'No articles match your search.',
-    noArticles: 'No articles found here.',
-    readHere: 'Read here →', openLink: 'Open link ↗',
-    translatedFrom: l => `↻ Translated from ${l}`,
-    original: l => `Original (${l}): `,
-    openOriginal: 'Open original ↗', close: 'Close',
-    confirmTitle: 'Open external link?',
-    confirmText: j => `Full text isn't available in-app for this story. It will open on <b>${j}</b> in a new tab.`,
-    cancel: 'Cancel', okOpen: 'OK, open link ↗',
-    cats: { Latest:'Latest', World:'World', Europe:'Europe', Politics:'Politics', Business:'Business', Tech:'Tech', Science:'Science', Culture:'Culture', Sports:'Sports' },
-    langNames: { it:'Italian', en:'English', fr:'French', es:'Spanish', de:'German', fi:'Finnish' }
+    searchPh:'Search articles…',
+    browse:'Browse', latest:'Latest', byCategory:'By Category', journals:'Journals', home:'Home',
+    welcomeEyebrow:'● Live European Press',
+    welcomeLead:'Read Europe\'s top free sources. News is gathered and translated every 30 minutes: browse the <b>Latest</b>, dive in <b>By Category</b>, or pick a single title. Papers not in your language are auto-translated.',
+    modeLatestTitle:'Latest', modeLatestSub:'All journals, newest first',
+    modeCatTitle:'By Category', modeCatSub:'Aggregated across Europe',
+    catTitle:'By Category', catSub:'One topic, aggregated from every journal across Europe',
+    latestTitle:'Latest', latestSub:'Freshest stories from every journal — newest first',
+    autoSuffix:'· auto-translated',
+    articlesCount:n=>`${n} article${n===1?'':'s'}`,
+    acrossJournals:' · across journals',
+    errAgg:'No articles available right now.',
+    noMatch:'No articles match your search.',
+    noArticles:'No articles here.',
+    readHere:'Read here →',
+    translatedFrom:l=>`↻ Translated from ${l}`,
+    original:l=>`Original (${l}): `,
+    openOriginal:'Open original ↗', close:'Close',
+    summaryLabel:'Summary',
+    textUnavailable:'full text unavailable; showing the summary. Open the original for the complete story.',
+    nextUpdate:x=>`Next update in ${x}`, updating:'Updating…', waiting:'Waiting…',
+    updatedAgo:x=>`Updated ${x} ago`, justNow:'just now',
+    snapshotMissing:'No update yet. The app refreshes every 30 minutes — check back shortly.',
+    cats:{ Latest:'Latest', World:'World', Europe:'Europe', Politics:'Politics', Business:'Business', Tech:'Tech', Science:'Science', Culture:'Culture', Sports:'Sports' },
+    langNames:{ it:'Italian', en:'English', fr:'French', es:'Spanish', de:'German', fi:'Finnish' },
   },
   fi: {
-    searchPh: 'Hae artikkeleita…',
-    refresh: 'Päivitä',
-    browse: 'Selaa', latest: 'Uusimmat', byCategory: 'Kategorioittain', journals: 'Lehdet',
-    home: 'Etusivu',
-    welcomeEyebrow: '● Euroopan lehdistö livenä',
-    welcomeLead: 'Lue Euroopan johtavia ilmaisia uutislähteitä reaaliajassa. Selaa <b>Uusimmat</b> kaikista lehdistä, tutki <b>Kategorioittain</b>, tai valitse yksittäinen lehti. Muunkieliset lehdet käännetään automaattisesti.',
-    modeLatestTitle: 'Uusimmat', modeLatestSub: 'Kaikki lehdet, uusimmat ensin',
-    modeCatTitle: 'Kategorioittain', modeCatSub: 'Koottu eri puolilta Eurooppaa',
-    catTitle: 'Kategorioittain', catSub: 'Yksi aihe koottuna jokaisesta eurooppalaisesta lehdestä',
-    latestTitle: 'Uusimmat', latestSub: 'Tuoreimmat uutiset jokaisesta lehdestä — uusimmat ensin',
-    autoSuffix: '· käännetty automaattisesti',
-    articlesCount: n => `${n} artikkelia`,
-    acrossJournals: ' · useista lehdistä',
-    loadingSteps: ['Yhdistetään syötteisiin…', 'Haetaan artikkeleita…', 'Käännetään…', 'Melkein valmis…'],
-    translating: l => `Käännetään kielestä ${l} suomeksi…`,
-    loadingText: 'Ladataan artikkelia…',
-    summaryLabel: 'Tiivistelmä',
-    textUnavailable: 'koko tekstiä ei ole saatavilla; näytetään tiivistelmä. Avaa alkuperäinen koko juttua varten.',
-    errFeed: 'Syötteen lataaminen epäonnistui useista yrityksistä huolimatta. Tarkista yhteytesi ja yritä uudelleen, tai valitse toinen kategoria.',
-    errAgg: 'Lähteitä ei voitu ladata juuri nyt. Yritä hetken kuluttua Päivitä-painikkeella.',
-    noMatch: 'Hakuasi vastaavia artikkeleita ei löytynyt.',
-    noArticles: 'Täältä ei löytynyt artikkeleita.',
-    readHere: 'Lue tästä →', openLink: 'Avaa linkki ↗',
-    translatedFrom: l => `↻ Käännetty kielestä ${l}`,
-    original: l => `Alkuperäinen (${l}): `,
-    openOriginal: 'Avaa alkuperäinen ↗', close: 'Sulje',
-    confirmTitle: 'Avataanko ulkoinen linkki?',
-    confirmText: j => `Koko tekstiä ei ole saatavilla sovelluksessa. Se avautuu sivustolla <b>${j}</b> uudessa välilehdessä.`,
-    cancel: 'Peruuta', okOpen: 'OK, avaa linkki ↗',
-    cats: { Latest:'Uusimmat', World:'Maailma', Europe:'Eurooppa', Politics:'Politiikka', Business:'Talous', Tech:'Teknologia', Science:'Tiede', Culture:'Kulttuuri', Sports:'Urheilu' },
-    langNames: { it:'italia', en:'englanti', fr:'ranska', es:'espanja', de:'saksa', fi:'suomi' }
-  }
+    searchPh:'Hae artikkeleita…',
+    browse:'Selaa', latest:'Uusimmat', byCategory:'Kategorioittain', journals:'Lehdet', home:'Etusivu',
+    welcomeEyebrow:'● Euroopan lehdistö livenä',
+    welcomeLead:'Lue Euroopan johtavia ilmaisia uutislähteitä. Uutiset kootaan ja käännetään 30 minuutin välein: selaa <b>Uusimmat</b>, tutki <b>Kategorioittain</b>, tai valitse yksittäinen lehti. Muunkieliset lehdet käännetään automaattisesti.',
+    modeLatestTitle:'Uusimmat', modeLatestSub:'Kaikki lehdet, uusimmat ensin',
+    modeCatTitle:'Kategorioittain', modeCatSub:'Koottu eri puolilta Eurooppaa',
+    catTitle:'Kategorioittain', catSub:'Yksi aihe koottuna jokaisesta eurooppalaisesta lehdestä',
+    latestTitle:'Uusimmat', latestSub:'Tuoreimmat uutiset jokaisesta lehdestä — uusimmat ensin',
+    autoSuffix:'· käännetty automaattisesti',
+    articlesCount:n=>`${n} artikkelia`,
+    acrossJournals:' · useista lehdistä',
+    errAgg:'Ei artikkeleita juuri nyt.',
+    noMatch:'Hakuasi vastaavia artikkeleita ei löytynyt.',
+    noArticles:'Ei artikkeleita täällä.',
+    readHere:'Lue tästä →',
+    translatedFrom:l=>`↻ Käännetty kielestä ${l}`,
+    original:l=>`Alkuperäinen (${l}): `,
+    openOriginal:'Avaa alkuperäinen ↗', close:'Sulje',
+    summaryLabel:'Tiivistelmä',
+    textUnavailable:'koko tekstiä ei ole saatavilla; näytetään tiivistelmä. Avaa alkuperäinen koko juttua varten.',
+    nextUpdate:x=>`Päivitys ${x}`, updating:'Päivitetään…', waiting:'Odotetaan…',
+    updatedAgo:x=>`Päivitetty ${x} sitten`, justNow:'juuri nyt',
+    snapshotMissing:'Ei vielä päivitystä. Sovellus päivittyy 30 minuutin välein — palaa pian.',
+    cats:{ Latest:'Uusimmat', World:'Maailma', Europe:'Eurooppa', Politics:'Politiikka', Business:'Talous', Tech:'Teknologia', Science:'Tiede', Culture:'Kulttuuri', Sports:'Urheilu' },
+    langNames:{ it:'italia', en:'englanti', fr:'ranska', es:'espanja', de:'saksa', fi:'suomi' },
+  },
 };
 
 // ─────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────
 let uiLang = 'it';
-let mode = 'home';                 // 'home' | 'journal' | 'category' | 'latest'
+let mode = 'home';
 let currentJournal = null;
-let currentCat = null;             // journal-view category key
-let currentCategory = null;        // aggregated category
+let currentCat = null;
+let currentCategory = null;
 let allArticles = [];
 let displayed = [];
 let searchQuery = '';
-let pendingLink = null;
 
-const translationCache = new Map(); // line-level: "sl>tl::text" -> translated
-const rawCache = new Map();         // "jid|cat" -> raw parsed articles
-const transCache = new Map();       // "jid|cat|lang" -> translated articles
-const aggCache = new Map();         // "kind|lang" -> merged aggregated articles
+let SNAP = null;                 // snapshot for the current language
+const snapByLang = {};           // lang -> snapshot cache
+let clockTimer = null, polling = false, lastPoll = 0;
 
 // ─────────────────────────────────────────────
 // I18N HELPERS
@@ -1248,37 +1119,83 @@ function langName(code) { return (I18N[uiLang].langNames || I18N.en.langNames)[c
 function journalById(id) { return JOURNALS.find(j => j.id === id); }
 
 // ─────────────────────────────────────────────
+// SNAPSHOT LOADING
+// ─────────────────────────────────────────────
+async function fetchSnap(lang, bust) {
+  try {
+    const url = `data/snapshot.${lang}.json` + (bust ? `?_=${Date.now()}` : '');
+    const res = await fetch(url, { cache: bust ? 'no-store' : 'default' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+async function loadSnapshot(lang) {
+  if (snapByLang[lang]) return snapByLang[lang];
+  const d = await fetchSnap(lang, false);
+  if (d) snapByLang[lang] = d;
+  return d;
+}
+function hasData() { return !!(SNAP && SNAP.ts && SNAP.journals && Object.keys(SNAP.journals).length); }
+
+function fromSnap(art, jid) {
+  const j = journalById(jid);
+  return {
+    title: art.t, desc: art.d || '', link: art.l || '', pubDate: art.p || '', cat: art.c || '',
+    journalId: jid, srcLang: art.s || (j ? j.lang : 'en'),
+    translated: !!art.o, rawTitle: art.o || art.t,
+    fullParas: art.f || [], hasFull: !!(art.f && art.f.length),
+  };
+}
+function getArticles(jid, cat) {
+  const feed = SNAP && SNAP.journals && SNAP.journals[jid] && SNAP.journals[jid][cat];
+  return feed ? feed.map(a => fromSnap(a, jid)) : [];
+}
+function journalCats(j) {
+  if (!hasData()) return CAT_ORDER.filter((_, i) => i < 3); // placeholder tabs
+  return CAT_ORDER.filter(k => (SNAP.journals[j.id] || {})[k] && SNAP.journals[j.id][k].length);
+}
+function aggCats() {
+  return AGG_CATS.filter(c => JOURNALS.some(j => (SNAP && SNAP.journals[j.id] || {})[c] && SNAP.journals[j.id][c].length));
+}
+
+// ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-function init() {
+async function init() {
   uiLang = localStorage.getItem('europress_lang') || 'it';
   document.getElementById('langSelect').value = uiLang;
+  SNAP = await loadSnapshot(uiLang);
   applyI18n();
+  startClock();
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
-function setLang(l) {
+async function setLang(l) {
   if (l === uiLang) return;
   uiLang = l;
   localStorage.setItem('europress_lang', l);
   document.getElementById('langSelect').value = l;
+  SNAP = (await loadSnapshot(l)) || SNAP;
   applyI18n();
 }
 
-// localize all chrome + re-render the current view (content re-translates per language)
 function applyI18n() {
   document.documentElement.lang = uiLang;
   document.getElementById('searchInput').placeholder = t('searchPh');
-  document.getElementById('refreshLabel').textContent = t('refresh');
   renderSidebar();
   renderWelcome();
+  reRenderView();
+}
+
+// redraw header + content for the active mode
+function reRenderView() {
   if (mode === 'journal' && currentJournal) { renderJournalHeader(); loadFeed(currentCat); }
   else if (mode === 'category') { renderCategoryHeader(); loadCategory(currentCategory); }
   else if (mode === 'latest') { renderLatestHeader(); loadLatest(); }
 }
 
 function renderSidebar() {
-  const html = `
+  document.getElementById('sidebar').innerHTML = `
     <div class="sidebar-label">${t('browse')}</div>
     <button class="journal-btn" id="nav-latest" onclick="openLatestView()">
       <span class="journal-icon emoji">🔥</span><span>${t('latest')}</span>
@@ -1293,7 +1210,6 @@ function renderSidebar() {
         <span>${j.name}</span>
         ${j.lang !== uiLang ? `<span class="lang-chip">${j.lang}</span>` : ''}
       </button>`).join('')}`;
-  document.getElementById('sidebar').innerHTML = html;
   setActiveNavForMode();
 }
 
@@ -1334,9 +1250,8 @@ function setActiveNavForMode() {
 function showJournalView() {
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('journalView').style.display = 'flex';
-  document.getElementById('searchBar').style.display = ''; // search only where there's content
+  document.getElementById('searchBar').style.display = '';
 }
-
 function goHome() {
   mode = 'home';
   currentJournal = null; currentCat = null; currentCategory = null;
@@ -1349,7 +1264,7 @@ function goHome() {
 }
 
 // ─────────────────────────────────────────────
-// VIEW: BY JOURNAL  (+ background prefetch of its other categories)
+// VIEW: BY JOURNAL
 // ─────────────────────────────────────────────
 function selectJournal(id) {
   currentJournal = journalById(id);
@@ -1358,14 +1273,13 @@ function selectJournal(id) {
   document.getElementById('searchInput').value = '';
   setActiveNav('jbtn-' + id);
   showJournalView();
-  currentCat = CAT_ORDER.filter(k => currentJournal.feeds[k])[0];
+  currentCat = journalCats(currentJournal)[0] || 'Latest';
   renderJournalHeader();
   loadFeed(currentCat);
 }
-
 function renderJournalHeader() {
   const j = currentJournal;
-  const keys = CAT_ORDER.filter(k => j.feeds[k]);
+  const keys = journalCats(j);
   const tabs = keys.map(k => `
     <button class="cat-tab ${k === currentCat ? 'active' : ''}" data-cat="${k}"
             onclick="loadFeed('${k}')">${catLabel(k)}</button>`).join('');
@@ -1380,52 +1294,17 @@ function renderJournalHeader() {
     </div>
     <div class="cat-tabs">${tabs}</div>`;
 }
-
-async function loadFeed(catKey, force) {
+function loadFeed(catKey) {
   if (!currentJournal) return;
   currentCat = catKey;
-  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === catKey));
-  const cached = !force && transCache.has(`${currentJournal.id}|${catKey}|${uiLang}`);
-  if (!cached) showLoading();
-  const arts = await getJournalArticles(currentJournal, catKey, force);
-  if (!arts) { hideLoading(); showError(t('errFeed')); return; }
-  allArticles = arts;
-  hideLoading();
+  document.querySelectorAll('.cat-tab').forEach(x => x.classList.toggle('active', x.dataset.cat === catKey));
+  if (!hasData()) { showError(t('snapshotMissing')); return; }
+  allArticles = getArticles(currentJournal.id, catKey);
   renderArticles();
-  prefetchJournal(currentJournal); // warm the other tabs in the background
-}
-
-// fetch+parse (rawCache) then translate to current uiLang (transCache)
-async function getJournalArticles(j, cat, force) {
-  const rk = `${j.id}|${cat}`;
-  let raw = force ? null : rawCache.get(rk);
-  if (!raw) {
-    const xml = await fetchRSS(j.feeds[cat]);
-    if (!xml) return null;
-    raw = parseRSS(xml, j).slice(0, LIMIT_JOURNAL);
-    rawCache.set(rk, raw);
-  }
-  const tk = `${rk}|${uiLang}`;
-  let tr = force ? null : transCache.get(tk);
-  if (!tr) {
-    tr = await translateArticles(cloneArts(raw), j);
-    transCache.set(tk, tr);
-  }
-  return tr;
-}
-
-// background warm-up: load remaining categories for the open journal, sequentially & gently
-async function prefetchJournal(j) {
-  const keys = CAT_ORDER.filter(k => j.feeds[k]);
-  for (const k of keys) {
-    if (currentJournal !== j || mode !== 'journal') return; // user moved on
-    if (transCache.has(`${j.id}|${k}|${uiLang}`)) continue;
-    try { await getJournalArticles(j, k); } catch { /* ignore */ }
-  }
 }
 
 // ─────────────────────────────────────────────
-// VIEW: BY CATEGORY (aggregated)
+// VIEW: BY CATEGORY
 // ─────────────────────────────────────────────
 function openCategoryView(cat) {
   mode = 'category';
@@ -1433,37 +1312,33 @@ function openCategoryView(cat) {
   document.getElementById('searchInput').value = '';
   setActiveNav('nav-category');
   showJournalView();
-  const cats = AGG_CATS.filter(c => JOURNALS.some(j => j.feeds[c]));
-  currentCategory = cat || cats[0];
+  const cats = aggCats();
+  currentCategory = cat || cats[0] || 'World';
   renderCategoryHeader();
   loadCategory(currentCategory);
 }
-
 function renderCategoryHeader() {
-  const cats = AGG_CATS.filter(c => JOURNALS.some(j => j.feeds[c]));
-  const tabs = cats.map(c => `
+  const cats = aggCats();
+  const list = cats.length ? cats : AGG_CATS;
+  const tabs = list.map(c => `
     <button class="cat-tab ${c === currentCategory ? 'active' : ''}" data-cat="${c}"
             onclick="loadCategory('${c}')">${catLabel(c)}</button>`).join('');
   document.getElementById('journalHeader').innerHTML = `
     ${backBtn()}
     <div class="journal-title">
       <span class="flag">🗂️</span>
-      <div>
-        <h1>${t('catTitle')}</h1>
-        <div class="journal-subtitle">${t('catSub')}</div>
-      </div>
+      <div><h1>${t('catTitle')}</h1><div class="journal-subtitle">${t('catSub')}</div></div>
     </div>
     <div class="cat-tabs">${tabs}</div>`;
 }
-
-function loadCategory(cat, force) {
+function loadCategory(cat) {
   currentCategory = cat;
-  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
-  return loadAggregated('cat:' + cat, j => j.feeds[cat], force);
+  document.querySelectorAll('.cat-tab').forEach(x => x.classList.toggle('active', x.dataset.cat === cat));
+  loadAggregated(j => getArticles(j.id, cat));
 }
 
 // ─────────────────────────────────────────────
-// VIEW: LATEST (aggregated, newest first)
+// VIEW: LATEST
 // ─────────────────────────────────────────────
 function openLatestView() {
   mode = 'latest';
@@ -1479,237 +1354,36 @@ function renderLatestHeader() {
     ${backBtn()}
     <div class="journal-title">
       <span class="flag">🔥</span>
-      <div>
-        <h1>${t('latestTitle')}</h1>
-        <div class="journal-subtitle">${t('latestSub')}</div>
-      </div>
+      <div><h1>${t('latestTitle')}</h1><div class="journal-subtitle">${t('latestSub')}</div></div>
     </div>`;
 }
-function loadLatest(force) { return loadAggregated('latest', j => j.feeds.Latest || j.feeds.World, force); }
+function loadLatest() {
+  loadAggregated(j => { const a = getArticles(j.id, 'Latest'); return a.length ? a : getArticles(j.id, 'World'); });
+}
 
 // ─────────────────────────────────────────────
-// AGGREGATION ENGINE
+// AGGREGATION (from snapshot, no network)
 // ─────────────────────────────────────────────
-async function loadAggregated(kind, feedSelector, force) {
-  const ak = `${kind}|${uiLang}`;
-  if (!force && aggCache.has(ak)) { allArticles = aggCache.get(ak); renderArticles(); return; }
-  showLoading();
-  const tasks = JOURNALS.map(async j => {
-    const url = feedSelector(j);
-    if (!url) return [];
-    try {
-      const xml = await fetchRSS(url);
-      if (!xml) return [];
-      let arts = parseRSS(xml, j).slice(0, LIMIT_AGG);
-      arts = await translateArticles(arts, j);
-      return arts;
-    } catch { return []; }
-  });
-  const results = await Promise.allSettled(tasks);
-  // one list per journal (each feed is already newest-first)
-  let lists = results.filter(r => r.status === 'fulfilled').map(r => r.value).filter(l => l.length);
-  // drop items that carry a real date older than the freshness window
+function loadAggregated(feedForJournal) {
+  if (!hasData()) { showError(t('snapshotMissing')); return; }
+  let lists = JOURNALS.map(j => feedForJournal(j)).filter(l => l.length);
   let fresh = lists.map(l => l.filter(a => !isStale(a)));
-  if (!fresh.some(l => l.length)) fresh = lists; // safety: never blank the page
-  // round-robin interleave so the newest from EVERY source surfaces first,
-  // then a stable sort by date keeps genuinely-newer items on top
+  if (!fresh.some(l => l.length)) fresh = lists;
   let merged = interleave(fresh);
   merged.sort((a, b) => effDate(b) - effDate(a));
-  aggCache.set(ak, merged);
   allArticles = merged;
-  hideLoading();
-  if (merged.length) renderArticles();
-  else showError(t('errAgg'));
+  if (merged.length) renderArticles(); else showError(t('errAgg'));
 }
-
-// ─────────────────────────────────────────────
-// FETCH — multi-proxy fallback chain
-// ─────────────────────────────────────────────
-const PROXIES = [
-  url => ({ mode: 'json',   fetch: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}` }),
-  url => ({ mode: 'raw',    fetch: `https://corsproxy.io/?url=${encodeURIComponent(url)}` }),
-  url => ({ mode: 'raw',    fetch: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` }),
-  url => ({ mode: 'direct', fetch: url }),
-];
-
-function fetchWithTimeout(url, ms = 9000) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
-}
-
-async function proxyFetchText(url) {
-  for (const proxyFn of PROXIES) {
-    const { mode, fetch: proxyUrl } = proxyFn(url);
-    try {
-      const res = await fetchWithTimeout(proxyUrl, 9000);
-      if (!res.ok) continue;
-      let text;
-      if (mode === 'json') { const d = await res.json(); text = d.contents; }
-      else text = await res.text();
-      if (text && text.length) return text;
-    } catch { continue; }
-  }
-  return null;
-}
-
-// append a cache-buster so proxies/CDNs return the live feed, not a cached one
-function bust(url) { return url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now(); }
-
-async function fetchRSS(feedUrl) {
-  feedUrl = bust(feedUrl);
-  for (const proxyFn of PROXIES) {
-    const { mode, fetch: proxyUrl } = proxyFn(feedUrl);
-    try {
-      const res = await fetchWithTimeout(proxyUrl, 9000);
-      if (!res.ok) continue;
-      let text;
-      if (mode === 'json') { const d = await res.json(); text = d.contents; }
-      else text = await res.text();
-      if (!text || text.length < 100) continue;
-      const xml = new DOMParser().parseFromString(text, 'text/xml');
-      if (xml.querySelector('item, entry')) return xml;
-    } catch { continue; }
-  }
-  return null;
-}
-
-// ─────────────────────────────────────────────
-// PARSING
-// ─────────────────────────────────────────────
-function txt(node, sel) { const n = node.querySelector(sel); return n ? n.textContent.trim() : ''; }
-
-function parseRSS(xml, journal) {
-  let nodes = Array.from(xml.querySelectorAll('item'));
-  if (!nodes.length) nodes = Array.from(xml.querySelectorAll('entry'));
-  return nodes.map(node => {
-    const title = txt(node, 'title');
-    let desc = (txt(node, 'description') || txt(node, 'summary')).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-    let link = txt(node, 'link');
-    if (!link) { const l = node.querySelector('link'); if (l) link = l.getAttribute('href') || ''; }
-    let pubDate = txt(node, 'pubDate') || txt(node, 'published') || txt(node, 'updated');
-    if (!pubDate) { const dc = node.getElementsByTagName('dc:date')[0]; if (dc) pubDate = dc.textContent.trim(); }
-    if (!pubDate) pubDate = txt(node, 'date');
-    const cat = txt(node, 'category');
-
-    let fullHtml = '';
-    const enc = node.getElementsByTagName('content:encoded')[0];
-    if (enc) fullHtml = enc.textContent || '';
-    if (!fullHtml) { const c = node.getElementsByTagName('content')[0]; if (c) fullHtml = c.textContent || ''; }
-    const fullParas = htmlToParas(fullHtml);
-    const hasFull = fullParas.join(' ').length > 600;
-
-    return {
-      rawTitle: title, rawDesc: desc, title, desc,
-      link: link || '', pubDate, cat,
-      journalId: journal.id, srcLang: journal.lang, translated: false,
-      fullParas: hasFull ? fullParas : [], hasFull
-    };
-  }).filter(a => a.rawTitle)
-    .sort((a, b) => effDate(b) - effDate(a)); // newest first within every feed/section
-}
-
-function cloneArts(arts) { return arts.map(a => Object.assign({}, a)); }
-
-function htmlToParas(html) {
-  if (!html) return [];
-  let t = html
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
-    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]*>/g, '');
-  const ta = document.createElement('textarea'); ta.innerHTML = t; t = ta.value;
-  return t.split(/\n{2,}/).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 1);
-}
-
-// articles older than this (when they DO carry a date) are dropped from aggregated views
-const STALE_DAYS = 10;
-// effective sort timestamp: real date if parseable, else "now" so fresh-but-undated
-// items stay on top instead of sinking below genuinely old ones
-function effDate(a) { const t = Date.parse(a.pubDate); return isNaN(t) ? Date.now() : t; }
-function isStale(a) { const t = Date.parse(a.pubDate); return !isNaN(t) && (Date.now() - t) > STALE_DAYS * 86400000; }
-// round-robin merge of several already-sorted lists (rank 0 from each, then rank 1, …)
+function effDate(a) { const x = Date.parse(a.pubDate); return isNaN(x) ? Date.now() : x; }
+function isStale(a) { const x = Date.parse(a.pubDate); return !isNaN(x) && (Date.now() - x) > STALE_DAYS * 86400000; }
 function interleave(lists) {
   const out = []; let i = 0, more = true;
   while (more) { more = false; for (const l of lists) { if (i < l.length) { out.push(l[i]); more = true; } } i++; }
   return out;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return '';
-  const diff = Math.floor((Date.now() - d) / 60000);
-  if (diff < 1)    return uiLang === 'it' ? 'Adesso' : uiLang === 'fi' ? 'Juuri nyt' : 'Just now';
-  if (diff < 60)   return `${diff}m`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
-  const loc = uiLang === 'it' ? 'it-IT' : uiLang === 'fi' ? 'fi-FI' : 'en-GB';
-  return d.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
-}
-
 // ─────────────────────────────────────────────
-// TRANSLATION (free Google gtx endpoint → uiLang, batched + cached)
-// ─────────────────────────────────────────────
-async function translateArticles(arts, j) {
-  if (j.lang === uiLang) {
-    arts.forEach(a => { a.title = a.rawTitle; a.desc = a.rawDesc; a.translated = false; });
-    return arts;
-  }
-  let tT, tD;
-  try {
-    [tT, tD] = await Promise.all([
-      translateLines(arts.map(a => a.rawTitle), j.lang, uiLang),
-      translateLines(arts.map(a => a.rawDesc || ''), j.lang, uiLang)
-    ]);
-  } catch { tT = arts.map(a => a.rawTitle); tD = arts.map(a => a.rawDesc); }
-  arts.forEach((a, i) => {
-    a.title = tT[i] || a.rawTitle;
-    a.desc  = tD[i] || a.rawDesc;
-    a.translated = true;
-  });
-  return arts;
-}
-
-async function translateLines(lines, sl, tl) {
-  if (!sl || sl === tl) return lines.slice();
-  const out = new Array(lines.length);
-  let batch = [], idx = [], size = 0;
-  const flush = async () => {
-    if (!batch.length) return;
-    const tr = await gtxBatch(batch, sl, tl);
-    tr.forEach((tt, k) => { const i = idx[k]; out[i] = tt; translationCache.set(`${sl}>${tl}::${lines[i]}`, tt); });
-    batch = []; idx = []; size = 0;
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const ln = lines[i] || '';
-    if (!ln) { out[i] = ''; continue; }
-    const key = `${sl}>${tl}::${ln}`;
-    if (translationCache.has(key)) { out[i] = translationCache.get(key); continue; }
-    if (size + ln.length > 1400 && batch.length) await flush();
-    batch.push(ln); idx.push(i); size += ln.length + 1;
-  }
-  await flush();
-  for (let i = 0; i < lines.length; i++) if (out[i] === undefined) out[i] = lines[i];
-  return out;
-}
-
-async function gtxBatch(lines, sl, tl) {
-  const q = lines.join('\n');
-  const api = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(q)}`;
-  const text = await proxyFetchText(api);
-  if (!text) return lines;
-  let data;
-  try { data = JSON.parse(text); } catch { return lines; }
-  const segs = (data && data[0]) || [];
-  const full = segs.map(s => (s && s[0]) ? s[0] : '').join('');
-  const outLines = full.split('\n');
-  if (outLines.length === lines.length) return outLines;
-  if (outLines.length > lines.length) return outLines.slice(0, lines.length);
-  return lines.map((l, i) => (outLines[i] !== undefined && outLines[i] !== '') ? outLines[i] : l);
-}
-
-// ─────────────────────────────────────────────
-// RENDER ARTICLES
+// RENDER
 // ─────────────────────────────────────────────
 function renderArticles() {
   const sv = document.getElementById('stateView');
@@ -1725,13 +1399,10 @@ function renderArticles() {
   if (!displayed.length) {
     al.innerHTML = `<div class="state-view" style="display:flex">
       <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-      <p>${q ? t('noMatch') : t('noArticles')}</p>
-    </div>`;
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p>${q ? t('noMatch') : t('noArticles')}</p></div>`;
     return;
   }
-
   al.innerHTML = `
     <div class="articles-count">${t('articlesCount', displayed.length)}${mode !== 'journal' ? t('acrossJournals') : ''}</div>
     <div class="articles-grid">${displayed.map((a, i) => articleCard(a, i)).join('')}</div>`;
@@ -1740,17 +1411,12 @@ function renderArticles() {
 function articleCard(a, i) {
   const j = journalById(a.journalId);
   const delay = Math.min(i * 0.03, 0.4);
-  const showJournal = mode !== 'journal';
-  const jBadge = showJournal
-    ? `<span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>`
-    : '';
+  const jBadge = mode !== 'journal'
+    ? `<span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>` : '';
   const catBadge = (mode === 'journal' && a.cat)
-    ? `<span class="card-category-badge">${escHtml(a.cat.slice(0, 24))}</span>`
-    : '';
+    ? `<span class="card-category-badge">${escHtml(a.cat.slice(0, 24))}</span>` : '';
   const transTag = a.translated
-    ? `<span class="trans-tag" title="${escAttr(langName(a.srcLang))}">↻ ${a.srcLang.toUpperCase()}→${uiLang.toUpperCase()}</span>`
-    : '';
-  const action = `<span class="read-more full">${t('readHere')}</span>`;
+    ? `<span class="trans-tag" title="${escAttr(langName(a.srcLang))}">↻ ${a.srcLang.toUpperCase()}→${uiLang.toUpperCase()}</span>` : '';
   return `
     <div class="article-card clickable" onclick="openArticle(${i})" role="button" tabindex="0"
          onkeydown="if(event.key==='Enter')openArticle(${i})" style="animation-delay:${delay}s">
@@ -1759,107 +1425,45 @@ function articleCard(a, i) {
       ${a.desc ? `<div class="card-desc">${escHtml(a.desc.slice(0, 200))}</div>` : ''}
       <div class="card-meta">
         <span class="date">${formatDate(a.pubDate)}</span>
-        ${action}
+        <span class="read-more full">${t('readHere')}</span>
       </div>
     </div>`;
 }
 
-function escHtml(str) {
-  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return (s || '').replace(/"/g,'%22').replace(/'/g,'%27'); }
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  const diff = Math.floor((Date.now() - d) / 60000);
+  if (diff < 1) return t('justNow');
+  if (diff < 60) return `${diff}m`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
+  const loc = uiLang === 'it' ? 'it-IT' : uiLang === 'fi' ? 'fi-FI' : 'en-GB';
+  return d.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
 }
-function escAttr(str) { return (str || '').replace(/"/g, '%22').replace(/'/g, '%27'); }
 
 // ─────────────────────────────────────────────
-// CARD ACTION: open the in-app reader for every article.
-// We try to obtain the full text (from the feed, else by fetching + extracting
-// the page), translate it, and fall back to the translated summary if needed.
+// READER (all text is already translated in the snapshot)
 // ─────────────────────────────────────────────
-function openArticle(i) {
-  const a = displayed[i];
-  if (a) openReader(a);
-}
+function openArticle(i) { const a = displayed[i]; if (a) openReader(a); }
 
-async function openReader(a) {
+function openReader(a) {
   const j = journalById(a.journalId);
   openOverlay('reader');
-  const box = document.getElementById('modalBox');
-
-  // 1) obtain source-language paragraphs: feed full text → cached fetch → live fetch
-  let src = (a.fullParas && a.fullParas.length) ? a.fullParas : a._srcParas;
-  if (!src && a.link) {
-    box.innerHTML = readerStatus(a, j, t('loadingText'));
-    try { src = await fetchArticleText(a.link); } catch { src = []; }
-    a._srcParas = src || [];
-  }
-  src = src || [];
-
-  // 2) translate to the chosen UI language (if the source isn't already in it)
-  let body = src;
-  if (src.length && a.translated) {
-    box.innerHTML = readerStatus(a, j, t('translating', langName(a.srcLang)));
-    if (!a._trParas) {
-      try { a._trParas = await translateLines(src, a.srcLang, uiLang); }
-      catch { a._trParas = src; }
-    }
-    body = a._trParas;
-  }
-
-  // 3) fallback: no full text → show the (translated) summary, clearly labelled
-  const incomplete = !body.length;
-  if (incomplete) body = a.desc ? [a.desc] : [];
-  box.innerHTML = readerHtml(a, j, body, incomplete);
-}
-
-// fetch the article page through the proxy chain and extract readable paragraphs
-async function fetchArticleText(url) {
-  const html = await proxyFetchText(bust(url));
-  if (!html || html.length < 500) return [];
-  let doc;
-  try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch { return []; }
-  let paras = [];
-  // primary: Mozilla Readability (loaded from CDN; may be unavailable offline)
-  try {
-    if (typeof Readability !== 'undefined') {
-      const art = new Readability(doc.cloneNode(true)).parse();
-      if (art && art.content) paras = htmlToParas(art.content);
-    }
-  } catch { /* fall through to heuristic */ }
-  // fallback heuristic: gather paragraph-like text from the main content
-  if (paras.join(' ').length < 400) {
-    const scope = doc.querySelector('article, main') || doc.body || doc;
-    const ps = scope ? Array.from(scope.querySelectorAll('p')) : [];
-    const h = ps.map(p => p.textContent.replace(/\s+/g, ' ').trim()).filter(s => s.length > 40);
-    if (h.join(' ').length > paras.join(' ').length) paras = h;
-  }
-  // cap length so translation stays fast / within sane limits
-  const capped = []; let total = 0;
-  for (const p of paras) { if (total > 8000) break; capped.push(p); total += p.length; }
-  return capped;
-}
-
-function readerStatus(a, j, msg) {
-  return `
-    <div class="reader-head">
-      <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
-      <div class="card-badges">
-        <span class="card-journal-badge" style="background:${j.colorSoft};color:${j.color}">${j.flag} ${escHtml(j.name)}</span>
-      </div>
-      <h2 class="reader-title">${escHtml(a.title)}</h2>
-    </div>
-    <div class="reader-loading"><div class="spinner-ring"></div><p>${escHtml(msg)}</p></div>
-    <div class="reader-foot">
-      <button class="btn-ghost" onclick="closeModal()">${t('close')}</button>
-      ${a.link ? `<a class="btn-primary" href="${escAttr(a.link)}" target="_blank" rel="noopener">${t('openOriginal')}</a>` : ''}
-    </div>`;
+  const paras = (a.fullParas && a.fullParas.length) ? a.fullParas : [];
+  const incomplete = !paras.length;
+  const body = incomplete ? (a.desc ? [a.desc] : []) : paras;
+  document.getElementById('modalBox').innerHTML = readerHtml(a, j, body, incomplete);
 }
 
 function readerHtml(a, j, paras, incomplete) {
   const transBadge = a.translated ? `<span class="trans-tag big">${t('translatedFrom', langName(a.srcLang))}</span>` : '';
   const orig = (a.translated && a.rawTitle) ? `<div class="reader-orig">${t('original', langName(a.srcLang))}${escHtml(a.rawTitle)}</div>` : '';
   const notice = incomplete ? `<div class="reader-notice">${t('summaryLabel')} · ${t('textUnavailable')}</div>` : '';
-  const body = paras.length
-    ? paras.map(p => `<p>${escHtml(p)}</p>`).join('')
-    : `<p>${escHtml(a.desc || '')}</p>`;
+  const body = paras.length ? paras.map(p => `<p>${escHtml(p)}</p>`).join('') : `<p>${escHtml(a.desc || '')}</p>`;
   return `
     <div class="reader-head">
       <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
@@ -1882,49 +1486,12 @@ function openOverlay(kind) {
   document.getElementById('modalBox').className = 'modal ' + kind;
   document.getElementById('modalOverlay').classList.add('open');
 }
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-  pendingLink = null;
-}
-function onOverlayClick(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
-}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function onOverlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
 
 // ─────────────────────────────────────────────
-// LOADING / ERROR STATES
+// ERROR STATE
 // ─────────────────────────────────────────────
-let loadingInterval = null;
-
-function showLoading() {
-  const sv = document.getElementById('stateView');
-  document.getElementById('articlesList').style.display = 'none';
-  sv.style.display = 'flex';
-  const steps = t('loadingSteps');
-  let step = 0;
-  sv.innerHTML = `
-    <div class="load-box">
-      <div class="load-spinner"></div>
-      <div class="load-label" id="loadLabel">${steps[0]}</div>
-      <div class="load-bar-track"><div class="load-bar-fill" id="loadBarFill"></div></div>
-      <div class="load-sub">${steps[0]}</div>
-    </div>`;
-  clearInterval(loadingInterval);
-  let pct = 5;
-  loadingInterval = setInterval(() => {
-    pct = Math.min(pct + Math.random() * 16, 85);
-    const fill = document.getElementById('loadBarFill');
-    const label = document.getElementById('loadLabel');
-    if (fill) fill.style.width = pct + '%';
-    if (label && step < steps.length - 1) { step++; label.textContent = steps[step]; }
-  }, 1300);
-}
-
-function hideLoading() {
-  clearInterval(loadingInterval);
-  const fill = document.getElementById('loadBarFill');
-  if (fill) fill.style.width = '100%';
-}
-
 function showError(msg) {
   const sv = document.getElementById('stateView');
   document.getElementById('articlesList').style.display = 'none';
@@ -1933,39 +1500,60 @@ function showError(msg) {
 }
 
 // ─────────────────────────────────────────────
-// SEARCH & REFRESH
+// SEARCH
 // ─────────────────────────────────────────────
 function filterArticles() {
   searchQuery = document.getElementById('searchInput').value;
-  if (allArticles.length) renderArticles();
+  if (allArticles.length || searchQuery) renderArticles();
 }
 
-function refreshFeed() {
-  const btn = document.getElementById('refreshBtn');
-  btn.classList.add('spinning');
-  const done = () => btn.classList.remove('spinning');
-  let p = null;
-  if (mode === 'journal' && currentJournal) {
-    rawCache.delete(`${currentJournal.id}|${currentCat}`);
-    transCache.delete(`${currentJournal.id}|${currentCat}|${uiLang}`);
-    p = loadFeed(currentCat, true);
-  } else if (mode === 'category') {
-    aggCache.delete(`cat:${currentCategory}|${uiLang}`);
-    p = loadCategory(currentCategory, true);
-  } else if (mode === 'latest') {
-    aggCache.delete(`latest|${uiLang}`);
-    p = loadLatest(true);
+// ─────────────────────────────────────────────
+// COUNTDOWN to next scheduled fetch (+ auto-pick-up when it lands)
+// ─────────────────────────────────────────────
+function startClock() { clearInterval(clockTimer); tickClock(); clockTimer = setInterval(tickClock, 1000); }
+function mmss(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+function agoStr(ms) { const m = Math.floor(ms / 60000); if (m < 1) return t('justNow'); if (m < 60) return `${m}m`; return `${Math.floor(m / 60)}h`; }
+
+function tickClock() {
+  const chip = document.getElementById('updateChip');
+  const txt = document.getElementById('updText');
+  if (!chip || !txt) return;
+  if (!SNAP || !SNAP.ts) { chip.classList.remove('updating'); txt.textContent = t('waiting'); chip.title = ''; return; }
+  const next = SNAP.ts + (SNAP.intervalMin || 30) * 60000;
+  const rem = next - Date.now();
+  chip.title = t('updatedAgo', agoStr(Date.now() - SNAP.ts));
+  if (rem > 1000) {
+    chip.classList.remove('updating');
+    txt.textContent = t('nextUpdate', mmss(rem));
+  } else {
+    chip.classList.add('updating');
+    txt.textContent = t('updating');
+    pollSnapshot();
   }
-  if (p && p.then) p.then(done).catch(done);
-  else setTimeout(done, 500);
+}
+
+// after the scheduled time passes, poll the static JSON until a newer snapshot appears
+async function pollSnapshot() {
+  const now = Date.now();
+  if (polling || now - lastPoll < 60000) return;
+  polling = true; lastPoll = now;
+  try {
+    const data = await fetchSnap(uiLang, true);
+    if (data && data.ts && (!SNAP || data.ts > SNAP.ts)) {
+      snapByLang[uiLang] = data;
+      SNAP = data;
+      Object.keys(snapByLang).forEach(k => { if (k !== uiLang) delete snapByLang[k]; }); // other langs will refetch
+      renderSidebar();
+      if (mode !== 'home') reRenderView();
+    }
+  } catch { /* keep old snapshot */ } finally { polling = false; }
 }
 
 // ─────────────────────────────────────────────
 function backBtn() {
   return `<button class="back-btn" onclick="goHome()">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-        <path d="M19 12H5M12 5l-7 7 7 7"/>
-      </svg> ${t('home')}
+        <path d="M19 12H5M12 5l-7 7 7 7"/></svg> ${t('home')}
     </button>`;
 }
 
