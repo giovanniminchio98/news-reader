@@ -44,15 +44,25 @@ function asText(v) {
   if (typeof v === 'object') return v.__cdata || v['#text'] || '';
   return '';
 }
-function strip(html) { return asText(html).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim(); }
+const NAMED = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:' ', hellip:'…',
+  mdash:'—', ndash:'–', rsquo:'’', lsquo:'‘', ldquo:'“', rdquo:'”', bdquo:'„',
+  laquo:'«', raquo:'»', euro:'€', deg:'°', copy:'©', reg:'®', trade:'™' };
+function decodeEntities(s) {
+  if (!s || s.indexOf('&') < 0) return s || '';
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, x) => { try { return String.fromCodePoint(parseInt(x, 16)); } catch { return _; } })
+    .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(parseInt(d, 10)); } catch { return _; } })
+    .replace(/&([a-zA-Z]+);/g, (m, n) => (NAMED[n] !== undefined ? NAMED[n] : m));
+}
+function strip(html) { return decodeEntities(asText(html).replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim(); }
 function toParas(html) {
   let t = asText(html);
   if (!t) return [];
   t = t.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
        .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n\n')
        .replace(/<br\s*\/?>/gi, '\n')
-       .replace(/<[^>]*>/g, '')
-       .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&#39;|&rsquo;/gi, "'").replace(/&quot;/gi, '"');
+       .replace(/<[^>]*>/g, '');
+  t = decodeEntities(t);
   return t.split(/\n{2,}/).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 1);
 }
 function firstLink(it) {
@@ -164,9 +174,9 @@ async function main() {
             }
           }
           outArr.push({
-            t: tT[i] || a.title, d: tD[i] || a.desc, l: a.link, p: a.pubDate, c: a.cat, s: j.lang,
-            ...(j.lang !== L ? { o: a.title } : {}),
-            ...(f ? { f } : {}),
+            t: decodeEntities(tT[i] || a.title), d: decodeEntities(tD[i] || a.desc), l: a.link, p: a.pubDate, c: a.cat, s: j.lang,
+            ...(j.lang !== L ? { o: decodeEntities(a.title) } : {}),
+            ...(f ? { f: f.map(decodeEntities) } : {}),
           });
         }
         snap[L].journals[j.id][cat] = outArr;

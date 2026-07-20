@@ -1159,13 +1159,23 @@ async function loadSnapshot(lang) {
 }
 function hasData() { return !!(SNAP && SNAP.ts && SNAP.journals && Object.keys(SNAP.journals).length); }
 
+// decode HTML entities (e.g. &#039; -> ') that some translations return,
+// so they don't render literally after escHtml re-escapes them
+let _entityTA = null;
+function decodeEntities(s) {
+  if (!s || s.indexOf('&') < 0) return s || '';
+  if (!_entityTA) _entityTA = document.createElement('textarea');
+  _entityTA.innerHTML = s;
+  return _entityTA.value;
+}
+
 function fromSnap(art, jid) {
   const j = journalById(jid);
   return {
-    title: art.t, desc: art.d || '', link: art.l || '', pubDate: art.p || '', cat: art.c || '',
+    title: decodeEntities(art.t), desc: decodeEntities(art.d || ''), link: art.l || '', pubDate: art.p || '', cat: decodeEntities(art.c || ''),
     journalId: jid, srcLang: art.s || (j ? j.lang : 'en'),
-    translated: !!art.o, rawTitle: art.o || art.t,
-    fullParas: art.f || [], hasFull: !!(art.f && art.f.length),
+    translated: !!art.o, rawTitle: decodeEntities(art.o || art.t),
+    fullParas: (art.f || []).map(decodeEntities), hasFull: !!(art.f && art.f.length),
   };
 }
 function getArticles(jid, cat) {
