@@ -520,6 +520,26 @@
   }
   .card-meta .read-more.full { color: var(--accent); }
 
+  /* quick actions on the card (copy / open link directly, no reader needed) */
+  .card-actions { margin-left: auto; display: flex; align-items: center; gap: 5px; }
+  .card-act {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .card-act:hover { color: var(--accent); border-color: rgba(200,240,96,0.35); background: rgba(200,240,96,0.06); }
+  .card-act:active { transform: scale(0.94); }
+  .card-act.copied { color: var(--accent); border-color: var(--accent); background: rgba(200,240,96,0.1); }
+  .card-act svg { width: 14px; height: 14px; }
+  .card-meta .read-more { margin-left: 0; }
+
   /* ── LOADING BOX ── */
   .load-box {
     display: flex;
@@ -1022,7 +1042,7 @@ const I18N = {
     errAgg:'Nessun articolo disponibile in questo momento.',
     noMatch:'Nessun articolo corrisponde alla ricerca.',
     noArticles:'Nessun articolo qui.',
-    readHere:'Leggi qui →',
+    readHere:'Leggi qui →', copyLink:'Copia il link', openLinkT:'Apri il link', copied:'Copiato!',
     translatedFrom:l=>`↻ Tradotto da: ${l}`,
     original:l=>`Originale (${l}): `,
     openOriginal:'Apri originale ↗', close:'Chiudi',
@@ -1049,7 +1069,7 @@ const I18N = {
     errAgg:'No articles available right now.',
     noMatch:'No articles match your search.',
     noArticles:'No articles here.',
-    readHere:'Read here →',
+    readHere:'Read here →', copyLink:'Copy link', openLinkT:'Open link', copied:'Copied!',
     translatedFrom:l=>`↻ Translated from ${l}`,
     original:l=>`Original (${l}): `,
     openOriginal:'Open original ↗', close:'Close',
@@ -1076,7 +1096,7 @@ const I18N = {
     errAgg:'Ei artikkeleita juuri nyt.',
     noMatch:'Hakuasi vastaavia artikkeleita ei löytynyt.',
     noArticles:'Ei artikkeleita täällä.',
-    readHere:'Lue tästä →',
+    readHere:'Lue tästä →', copyLink:'Kopioi linkki', openLinkT:'Avaa linkki', copied:'Kopioitu!',
     translatedFrom:l=>`↻ Käännetty kielestä ${l}`,
     original:l=>`Alkuperäinen (${l}): `,
     openOriginal:'Avaa alkuperäinen ↗', close:'Sulje',
@@ -1427,8 +1447,39 @@ function articleCard(a, i) {
       <div class="card-meta">
         <span class="date">${formatDate(a.pubDate)}</span>
         <span class="read-more full">${t('readHere')}</span>
+        ${a.link ? `<span class="card-actions">
+          <button class="card-act" title="${t('copyLink')}" aria-label="${t('copyLink')}" onclick="event.stopPropagation();copyLink(${i},this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <a class="card-act" href="${escAttr(a.link)}" target="_blank" rel="noopener" title="${t('openLinkT')}" aria-label="${t('openLinkT')}" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+          </a>
+        </span>` : ''}
       </div>
     </div>`;
+}
+
+function copyLink(i, btn) {
+  const a = displayed[i];
+  if (!a || !a.link) return;
+  const flash = () => {
+    btn.classList.add('copied');
+    const prev = btn.getAttribute('title');
+    btn.setAttribute('title', t('copied'));
+    setTimeout(() => { btn.classList.remove('copied'); btn.setAttribute('title', prev); }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(a.link).then(flash).catch(() => fallbackCopy(a.link, flash));
+  } else fallbackCopy(a.link, flash);
+}
+function fallbackCopy(text, done) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    if (done) done();
+  } catch { /* ignore */ }
 }
 
 function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
