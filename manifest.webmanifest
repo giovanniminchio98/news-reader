@@ -2,7 +2,7 @@
   "name": "EuroPress — European News Reader",
   "short_name": "EuroPress",
   "description": "Live European news from many journals, by Latest, Category or Journal — auto-translated to your language.",
-  "lang": "it",
+  "lang": "en",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

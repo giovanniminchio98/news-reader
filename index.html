@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="EuroPress">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400;500&display=swap');
 
   :root {
     --bg:      #f5f2ea;
@@ -37,7 +37,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+    font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
     background: var(--bg);
     color: var(--text);
     height: 100vh;
@@ -74,7 +74,7 @@
   }
 
   .logo {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-size: 1.4rem;
     color: var(--text);
@@ -356,7 +356,7 @@
     margin-bottom: 14px;
   }
   .journal-title h1 {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-size: 1.3rem;
     color: var(--text);
@@ -477,16 +477,16 @@
   .trans-tag.big { font-size: 0.65rem; padding: 4px 11px; }
 
   .card-title {
-    font-family: 'Newsreader', Georgia, serif;
-    font-size: 1.18rem;
-    font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
     color: var(--accent);
   }
 
   .card-desc {
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'EB Garamond', Georgia, serif;
     font-size: 0.98rem;
     color: #33302b;
     line-height: 1.5;
@@ -641,16 +641,16 @@
     align-items: center;
     justify-content: center;
     flex: 1;
-    padding: 60px 24px;
-    gap: 18px;
+    padding: 30px 22px;
+    gap: 12px;
     text-align: center;
     animation: fadeUp 0.5s ease both;
   }
 
   .welcome-logo {
-    width: 88px;
-    height: 88px;
-    border-radius: 22px;
+    width: 66px;
+    height: 66px;
+    border-radius: 17px;
     box-shadow: var(--shadow);
     margin-bottom: 2px;
   }
@@ -663,81 +663,78 @@
   }
 
   .welcome-screen h2 {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Cormorant Garamond', serif;
     font-style: italic;
-    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 600;
+    font-size: clamp(2rem, 8vw, 2.9rem);
     color: var(--text);
-    line-height: 1.1;
+    line-height: 1.04;
   }
   .welcome-screen h2 span { color: var(--accent); font-style: normal; }
 
   .welcome-screen p {
-    font-size: 0.8rem;
+    font-size: 0.92rem;
     color: var(--muted);
-    max-width: 420px;
-    line-height: 1.7;
+    max-width: 360px;
+    line-height: 1.5;
   }
 
   /* ── MODE CARDS ── */
   .mode-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin-top: 2px;
   }
   .mode-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 22px;
+    border-radius: var(--radius-sm);
+    padding: 13px 12px;
     cursor: pointer;
     font-family: 'DM Mono', monospace;
     color: var(--text);
-    text-align: left;
-    min-width: 200px;
+    text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    transition: all 0.15s;
+    align-items: center;
+    gap: 2px;
+    transition: border-color 0.15s, background 0.15s;
   }
-  .mode-card:hover {
-    border-color: var(--accent);
-    background: rgba(176,30,30,0.06);
-    transform: translateY(-2px);
-  }
-  .mode-card .mc-emoji { font-size: 1.3rem; }
-  .mode-card b { font-size: 0.92rem; letter-spacing: 0.02em; }
-  .mode-card span { font-size: 0.68rem; color: var(--muted); }
+  .mode-card:hover { border-color: var(--accent); background: rgba(176,30,30,0.06); }
+  .mode-card .mc-emoji { font-size: 1.15rem; }
+  .mode-card b { font-size: 0.8rem; letter-spacing: 0.04em; }
+  .mode-card span { font-size: 0.56rem; color: var(--muted); line-height: 1.3; }
 
-  .journal-pills {
+  .jrn-head {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .journal-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
     justify-content: center;
-    margin-top: 8px;
-    max-width: 720px;
+    gap: 5px 14px;
+    max-width: 540px;
   }
-  .journal-pill {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 50px;
-    padding: 8px 18px;
-    font-size: 0.75rem;
-    font-family: 'DM Mono', monospace;
+  .journal-link {
+    background: none;
+    border: none;
     cursor: pointer;
-    color: var(--muted);
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    letter-spacing: 0.02em;
+    padding: 2px 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4a453d;
+    transition: color 0.15s;
   }
-  .journal-pill:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(176,30,30,0.06);
-  }
+  .journal-link:hover { color: var(--accent); }
 
   /* ── MODAL (reader + confirm) ── */
   .modal-overlay {
@@ -789,11 +786,11 @@
   .modal-close:hover { color: var(--bear); border-color: var(--bear); }
 
   .reader-title {
-    font-family: 'Newsreader', Georgia, serif;
-    font-style: normal;
-    font-weight: 700;
-    font-size: 1.6rem;
-    line-height: 1.22;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.15;
     color: var(--accent);
     margin: 14px 0 6px;
     padding-right: 36px;
@@ -894,7 +891,7 @@
     border: 1px solid rgba(47,92,143,0.3);
   }
   .confirm-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-size: 1.2rem;
     margin-bottom: 8px;
@@ -1031,7 +1028,7 @@ const I18N = {
     searchPh:'Cerca articoli…',
     browse:'Esplora', latest:'Ultime', byCategory:'Per categoria', journals:'Testate', home:'Home',
     welcomeEyebrow:'● Stampa europea in diretta',
-    welcomeLead:'Leggi le principali fonti gratuite d\'Europa. Le notizie vengono raccolte e tradotte ogni 30 minuti: sfoglia le <b>Ultime</b>, esplora <b>Per categoria</b>, o scegli una testata. Le testate non in italiano sono tradotte automaticamente.',
+    welcomeLead:'Le migliori fonti gratuite d\'Europa, raccolte e tradotte ogni 30 minuti.',
     modeLatestTitle:'Ultime', modeLatestSub:'Tutte le testate, dalle più recenti',
     modeCatTitle:'Per categoria', modeCatSub:'Aggregate da tutta Europa',
     catTitle:'Per categoria', catSub:'Un argomento, aggregato da ogni testata europea',
@@ -1058,7 +1055,7 @@ const I18N = {
     searchPh:'Search articles…',
     browse:'Browse', latest:'Latest', byCategory:'By Category', journals:'Journals', home:'Home',
     welcomeEyebrow:'● Live European Press',
-    welcomeLead:'Read Europe\'s top free sources. News is gathered and translated every 30 minutes: browse the <b>Latest</b>, dive in <b>By Category</b>, or pick a single title. Papers not in your language are auto-translated.',
+    welcomeLead:'Europe\'s top free papers, gathered and translated every 30 minutes.',
     modeLatestTitle:'Latest', modeLatestSub:'All journals, newest first',
     modeCatTitle:'By Category', modeCatSub:'Aggregated across Europe',
     catTitle:'By Category', catSub:'One topic, aggregated from every journal across Europe',
@@ -1085,7 +1082,7 @@ const I18N = {
     searchPh:'Hae artikkeleita…',
     browse:'Selaa', latest:'Uusimmat', byCategory:'Kategorioittain', journals:'Lehdet', home:'Etusivu',
     welcomeEyebrow:'● Euroopan lehdistö livenä',
-    welcomeLead:'Lue Euroopan johtavia ilmaisia uutislähteitä. Uutiset kootaan ja käännetään 30 minuutin välein: selaa <b>Uusimmat</b>, tutki <b>Kategorioittain</b>, tai valitse yksittäinen lehti. Muunkieliset lehdet käännetään automaattisesti.',
+    welcomeLead:'Euroopan parhaat ilmaiset lähteet, koottu ja käännetty 30 minuutin välein.',
     modeLatestTitle:'Uusimmat', modeLatestSub:'Kaikki lehdet, uusimmat ensin',
     modeCatTitle:'Kategorioittain', modeCatSub:'Koottu eri puolilta Eurooppaa',
     catTitle:'Kategorioittain', catSub:'Yksi aihe koottuna jokaisesta eurooppalaisesta lehdestä',
@@ -1183,7 +1180,7 @@ function aggCats() {
 // INIT
 // ─────────────────────────────────────────────
 async function init() {
-  uiLang = localStorage.getItem('europress_lang') || 'it';
+  uiLang = localStorage.getItem('europress_lang') || 'en';
   document.getElementById('langSelect').value = uiLang;
   SNAP = await loadSnapshot(uiLang);
   applyI18n();
@@ -1237,7 +1234,6 @@ function renderSidebar() {
 function renderWelcome() {
   document.getElementById('welcomeScreen').innerHTML = `
     <img src="icon.svg" alt="EuroPress" class="welcome-logo">
-    <div class="eyebrow">${t('welcomeEyebrow')}</div>
     <h2>Euro<span>Press</span></h2>
     <p>${t('welcomeLead')}</p>
     <div class="mode-row">
@@ -1248,11 +1244,10 @@ function renderWelcome() {
         <span class="mc-emoji">🗂️</span><b>${t('modeCatTitle')}</b><span>${t('modeCatSub')}</span>
       </button>
     </div>
-    <div class="journal-pills" id="quickPills"></div>`;
+    <div class="jrn-head">${t('journals')}</div>
+    <div class="journal-links" id="quickPills"></div>`;
   document.getElementById('quickPills').innerHTML = JOURNALS.map(j => `
-    <button class="journal-pill" onclick="selectJournal('${j.id}')">
-      <span>${j.flag}</span> ${j.name}${j.lang !== uiLang ? ` · ${j.lang.toUpperCase()}→${uiLang.toUpperCase()}` : ''}
-    </button>`).join('');
+    <button class="journal-link" onclick="selectJournal('${j.id}')">${j.name}</button>`).join('');
 }
 
 function setActiveNav(id) {
