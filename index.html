@@ -732,9 +732,13 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #4a453d;
-    transition: color 0.15s;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: #c3b9a6;
+    transition: color 0.15s, text-decoration-color 0.15s;
   }
-  .journal-link:hover { color: var(--accent); }
+  .journal-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
 
   /* ── MODAL (reader + confirm) ── */
   .modal-overlay {
@@ -1046,7 +1050,7 @@ const I18N = {
     summaryLabel:'Riassunto',
     textUnavailable:'testo completo non disponibile; ecco il riassunto. Apri l\'originale per l\'articolo intero.',
     nextUpdate:x=>`Aggiorna tra ${x}`, updating:'Aggiornamento…', waiting:'In attesa…',
-    updatedAgo:x=>`Aggiornato ${x} fa`, updatedAt:x=>`Aggiornato alle ${x}`, updatedJustNow:'Aggiornato ora', justNow:'ora',
+    updatedAgo:x=>`Aggiornato ${x} fa`, updatedAt:x=>`Aggiornato alle ${x}`, updatedJustNow:'Aggiornato ora', justNow:'ora', agoSuffix:'fa',
     snapshotMissing:'Nessun aggiornamento ancora. L\'app si aggiorna ogni 30 minuti — riprova tra poco.',
     cats:{ Latest:'Ultime', World:'Mondo', Europe:'Europa', Politics:'Politica', Business:'Economia', Tech:'Tecnologia', Science:'Scienza', Culture:'Cultura', Sports:'Sport' },
     langNames:{ it:'italiano', en:'inglese', fr:'francese', es:'spagnolo', de:'tedesco', fi:'finlandese' },
@@ -1073,7 +1077,7 @@ const I18N = {
     summaryLabel:'Summary',
     textUnavailable:'full text unavailable; showing the summary. Open the original for the complete story.',
     nextUpdate:x=>`Next update in ${x}`, updating:'Updating…', waiting:'Waiting…',
-    updatedAgo:x=>`Updated ${x} ago`, updatedAt:x=>`Updated at ${x}`, updatedJustNow:'Updated just now', justNow:'just now',
+    updatedAgo:x=>`Updated ${x} ago`, updatedAt:x=>`Updated at ${x}`, updatedJustNow:'Updated just now', justNow:'just now', agoSuffix:'ago',
     snapshotMissing:'No update yet. The app refreshes every 30 minutes — check back shortly.',
     cats:{ Latest:'Latest', World:'World', Europe:'Europe', Politics:'Politics', Business:'Business', Tech:'Tech', Science:'Science', Culture:'Culture', Sports:'Sports' },
     langNames:{ it:'Italian', en:'English', fr:'French', es:'Spanish', de:'German', fi:'Finnish' },
@@ -1100,7 +1104,7 @@ const I18N = {
     summaryLabel:'Tiivistelmä',
     textUnavailable:'koko tekstiä ei ole saatavilla; näytetään tiivistelmä. Avaa alkuperäinen koko juttua varten.',
     nextUpdate:x=>`Päivitys ${x}`, updating:'Päivitetään…', waiting:'Odotetaan…',
-    updatedAgo:x=>`Päivitetty ${x} sitten`, updatedAt:x=>`Päivitetty klo ${x}`, updatedJustNow:'Päivitetty juuri nyt', justNow:'juuri nyt',
+    updatedAgo:x=>`Päivitetty ${x} sitten`, updatedAt:x=>`Päivitetty klo ${x}`, updatedJustNow:'Päivitetty juuri nyt', justNow:'juuri nyt', agoSuffix:'sitten',
     snapshotMissing:'Ei vielä päivitystä. Sovellus päivittyy 30 minuutin välein — palaa pian.',
     cats:{ Latest:'Uusimmat', World:'Maailma', Europe:'Eurooppa', Politics:'Politiikka', Business:'Talous', Tech:'Teknologia', Science:'Tiede', Culture:'Kulttuuri', Sports:'Urheilu' },
     langNames:{ it:'italia', en:'englanti', fr:'ranska', es:'espanja', de:'saksa', fi:'suomi' },
@@ -1486,8 +1490,8 @@ function formatDate(dateStr) {
   if (isNaN(d)) return '';
   const diff = Math.floor((Date.now() - d) / 60000);
   if (diff < 1) return t('justNow');
-  if (diff < 60) return `${diff}m`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
+  if (diff < 60) return `${diff}m ${t('agoSuffix')}`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h ${t('agoSuffix')}`;
   const loc = uiLang === 'it' ? 'it-IT' : uiLang === 'fi' ? 'fi-FI' : 'en-GB';
   return d.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
 }
