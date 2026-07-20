@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="EuroPress">
-  <rect width="512" height="512" fill="#0e0e0e"/>
-  <rect x="40" y="40" width="432" height="432" rx="92" fill="#1c1c1c" stroke="#2a2a2a" stroke-width="3"/>
-  <g fill="#c8f060">
+  <rect width="512" height="512" fill="#fffdf7"/>
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="#fffdf7" stroke="#d0c4ad" stroke-width="3"/>
+  <g fill="#b01e1e">
     <rect x="150" y="123" width="52"  height="266"/>
     <rect x="150" y="123" width="222" height="50"/>
     <rect x="150" y="236" width="180" height="50"/>
