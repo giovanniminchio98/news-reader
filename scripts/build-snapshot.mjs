@@ -7,9 +7,10 @@ import fs from 'node:fs/promises';
 import { JOURNALS, CAT_ORDER, UI_LANGS } from './journals.mjs';
 
 const PER_FEED   = 18;     // items kept per feed
-const FULL_TXT_N = 6;      // translate full text for the top N items per feed (native stays free for all)
+const FULL_TXT_N = 0;      // full-text translation off (conserve API quota; reader shows translated summary)
 const FULL_CAP   = 7000;   // max chars of full text per article
 const CACHE_FILE = 'data/.tcache.json';
+const DEEPL_KEY  = process.env.DEEPL_API_KEY || ''; // set as a GitHub Actions secret for reliable translation
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', cdataPropName: '__cdata', trimValues: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -97,12 +98,33 @@ function tdate(s) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
 // gtx (Google) is blocked on datacenter IPs; Lingva (Google proxy) and MyMemory
 // are fallbacks. We detect what works up front so a dead provider never stalls the build.
 let tcache = {};
-const PROV = { gtx: 0, lingva: 0, mymemory: 0, fail: 0 };
+const PROV = { deepl: 0, gtx: 0, lingva: 0, mymemory: 0, fail: 0 };
 const T = 8000; // per-request timeout
 const LINGVA_HOSTS = ['lingva.ml', 'lingva.garudalinux.org', 'translate.plausibility.cloud', 'lingva.lunar.icu', 'translate.dr460nf1r3.org'];
 let LINGVA_HOST = null;        // pinned to the first mirror that answered in the probe
 const WORKING = [];            // ordered [name, fn, multiline] of providers that passed the probe
 
+async function provDeepL(text, sl, tl) {
+  if (!DEEPL_KEY) return null;
+  const lines = text.split('\n');
+  const p = new URLSearchParams();
+  p.set('source_lang', sl.toUpperCase());
+  p.set('target_lang', tl.toUpperCase());
+  for (const ln of lines) p.append('text', ln);
+  try {
+    const r = await fetch('https://api-free.deepl.com/v2/translate', {
+      method: 'POST',
+      headers: { 'Authorization': 'DeepL-Auth-Key ' + DEEPL_KEY, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: p, signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d && Array.isArray(d.translations) && d.translations.length === lines.length) {
+      return d.translations.map(t => t.text).join('\n');
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 async function provGtx(text, sl, tl) {
   const api = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   try {
@@ -136,15 +158,17 @@ async function provMyMemory(text, sl, tl) {
 
 async function probeProviders() {
   const s = 'Bonjour le monde, ceci est un simple test de traduction.';
+  const dl = DEEPL_KEY ? await provDeepL(s, 'fr', 'en') : null;
   const g = await provGtx(s, 'fr', 'en');
   for (const host of LINGVA_HOSTS) {
     try { if (await lingvaAt(host, s, 'fr', 'en')) { LINGVA_HOST = host; break; } } catch { /* next */ }
   }
   const m = await provMyMemory(s, 'fr', 'en');
+  if (dl) WORKING.push(['deepl', provDeepL, true]);   // preferred: reliable, batches natively
   if (g) WORKING.push(['gtx', provGtx, true]);
   if (LINGVA_HOST) WORKING.push(['lingva', provLingva, true]);
   if (m) WORKING.push(['mymemory', provMyMemory, false]);
-  console.log(`PROVIDER PROBE  gtx:${g ? 'OK' : 'FAIL'}  lingva:${LINGVA_HOST || 'FAIL'}  mymemory:${m ? 'OK' : 'FAIL'}`);
+  console.log(`PROVIDER PROBE  deepl:${DEEPL_KEY ? (dl ? 'OK' : 'FAIL(check key)') : 'no-key'}  gtx:${g ? 'OK' : 'FAIL'}  lingva:${LINGVA_HOST || 'FAIL'}  mymemory:${m ? 'OK' : 'FAIL'}`);
   console.log('WORKING providers:', WORKING.map(w => w[0]).join(', ') || 'NONE — articles stay in original language');
 }
 
@@ -254,7 +278,7 @@ async function main() {
   for (const L of UI_LANGS) await fs.writeFile(`data/snapshot.${L}.json`, JSON.stringify(snap[L]));
   await fs.writeFile(CACHE_FILE, JSON.stringify(tcache));
   console.log(`Done. feeds ok=${feedsOk} fail=${feedsFail}, cache entries=${Object.keys(tcache).length}`);
-  console.log(`TRANSLATION via gtx=${PROV.gtx} lingva=${PROV.lingva} mymemory=${PROV.mymemory} fail=${PROV.fail}`);
+  console.log(`TRANSLATION via deepl=${PROV.deepl} gtx=${PROV.gtx} lingva=${PROV.lingva} mymemory=${PROV.mymemory} fail=${PROV.fail}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

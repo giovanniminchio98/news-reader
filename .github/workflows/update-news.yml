@@ -39,6 +39,8 @@ jobs:
 
       - name: Build snapshot (fetch + translate all feeds)
         run: npm run build:snapshot
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
 
       - name: Assemble site
         run: |
