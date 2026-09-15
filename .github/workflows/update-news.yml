@@ -26,21 +26,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Restore translation cache
-        uses: actions/cache@v4
-        with:
-          path: data/.tcache.json
-          key: tcache-${{ github.run_id }}
-          restore-keys: |
-            tcache-
-
       - name: Install deps
         run: npm install --no-audit --no-fund
 
-      - name: Build snapshot (fetch + translate all feeds)
+      - name: Build snapshot (fetch all feeds)
         run: npm run build:snapshot
-        env:
-          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
 
       - name: Assemble site
         run: |

@@ -1032,7 +1032,7 @@ const I18N = {
     searchPh:'Cerca articoli…',
     browse:'Esplora', latest:'Ultime', byCategory:'Per categoria', journals:'Testate', home:'Home',
     welcomeEyebrow:'● Stampa europea in diretta',
-    welcomeLead:'Le migliori fonti gratuite d\'Europa, raccolte e tradotte ogni 30 minuti.',
+    welcomeLead:'Le principali testate italiane, aggiornate ogni 30 minuti.',
     modeLatestTitle:'Ultime', modeLatestSub:'Tutte le testate, dalle più recenti',
     modeCatTitle:'Per categoria', modeCatSub:'Aggregate da tutta Europa',
     catTitle:'Per categoria', catSub:'Un argomento, aggregato da ogni testata europea',
@@ -1059,7 +1059,7 @@ const I18N = {
     searchPh:'Search articles…',
     browse:'Browse', latest:'Latest', byCategory:'By Category', journals:'Journals', home:'Home',
     welcomeEyebrow:'● Live European Press',
-    welcomeLead:'Europe\'s top free papers, gathered and translated every 30 minutes.',
+    welcomeLead:'International news in English from Europe\'s top free sources, updated every 30 minutes.',
     modeLatestTitle:'Latest', modeLatestSub:'All journals, newest first',
     modeCatTitle:'By Category', modeCatSub:'Aggregated across Europe',
     catTitle:'By Category', catSub:'One topic, aggregated from every journal across Europe',
@@ -1086,7 +1086,7 @@ const I18N = {
     searchPh:'Hae artikkeleita…',
     browse:'Selaa', latest:'Uusimmat', byCategory:'Kategorioittain', journals:'Lehdet', home:'Etusivu',
     welcomeEyebrow:'● Euroopan lehdistö livenä',
-    welcomeLead:'Euroopan parhaat ilmaiset lähteet, koottu ja käännetty 30 minuutin välein.',
+    welcomeLead:'Kansainväliset uutiset englanniksi Euroopan parhaista lähteistä, 30 minuutin välein.',
     modeLatestTitle:'Uusimmat', modeLatestSub:'Kaikki lehdet, uusimmat ensin',
     modeCatTitle:'Kategorioittain', modeCatSub:'Koottu eri puolilta Eurooppaa',
     catTitle:'Kategorioittain', catSub:'Yksi aihe koottuna jokaisesta eurooppalaisesta lehdestä',
@@ -1186,8 +1186,14 @@ function journalCats(j) {
   if (!hasData()) return CAT_ORDER.filter((_, i) => i < 3); // placeholder tabs
   return CAT_ORDER.filter(k => (SNAP.journals[j.id] || {})[k] && SNAP.journals[j.id][k].length);
 }
+// which journals are shown for the current UI language (no translation):
+// en/fi → English-language sources; it → Italian-language sources
+function displayJournals() {
+  const langs = uiLang === 'it' ? ['it'] : ['en'];
+  return JOURNALS.filter(j => langs.includes(j.lang));
+}
 function aggCats() {
-  return AGG_CATS.filter(c => JOURNALS.some(j => (SNAP && SNAP.journals[j.id] || {})[c] && SNAP.journals[j.id][c].length));
+  return AGG_CATS.filter(c => displayJournals().some(j => (SNAP && SNAP.journals[j.id] || {})[c] && SNAP.journals[j.id][c].length));
 }
 
 // ─────────────────────────────────────────────
@@ -1208,6 +1214,13 @@ async function setLang(l) {
   localStorage.setItem('europress_lang', l);
   document.getElementById('langSelect').value = l;
   SNAP = (await loadSnapshot(l)) || SNAP;
+  // if the open journal isn't shown in the new language, fall back to home
+  if (mode === 'journal' && !displayJournals().some(j => currentJournal && j.id === currentJournal.id)) {
+    mode = 'home'; currentJournal = null;
+    document.getElementById('journalView').style.display = 'none';
+    document.getElementById('welcomeScreen').style.display = 'flex';
+    document.getElementById('searchBar').style.display = 'none';
+  }
   applyI18n();
 }
 
@@ -1236,11 +1249,10 @@ function renderSidebar() {
       <span class="journal-icon emoji">🗂️</span><span>${t('byCategory')}</span>
     </button>
     <div class="sidebar-label">${t('journals')}</div>
-    ${JOURNALS.map(j => `
+    ${displayJournals().map(j => `
       <button class="journal-btn" id="jbtn-${j.id}" onclick="selectJournal('${j.id}')">
         <span class="journal-icon" style="background:${j.colorSoft};color:${j.color}">${j.abbr}</span>
         <span>${j.name}</span>
-        ${j.lang !== uiLang ? `<span class="lang-chip">${j.lang}</span>` : ''}
       </button>`).join('')}`;
   setActiveNavForMode();
 }
@@ -1260,7 +1272,7 @@ function renderWelcome() {
     </div>
     <div class="jrn-head">${t('journals')}</div>
     <div class="journal-links" id="quickPills"></div>`;
-  document.getElementById('quickPills').innerHTML = JOURNALS.map(j => `
+  document.getElementById('quickPills').innerHTML = displayJournals().map(j => `
     <button class="journal-link" onclick="selectJournal('${j.id}')">${j.name}</button>`).join('');
 }
 
@@ -1319,7 +1331,7 @@ function renderJournalHeader() {
       <span class="flag">${j.flag}</span>
       <div>
         <h1>${j.name}</h1>
-        <div class="journal-subtitle">${j.subtitle}${j.lang !== uiLang ? ` ${t('autoSuffix')}` : ''}</div>
+        <div class="journal-subtitle">${j.subtitle}</div>
       </div>
     </div>
     <div class="cat-tabs">${tabs}</div>`;
@@ -1396,7 +1408,7 @@ function loadLatest() {
 // ─────────────────────────────────────────────
 function loadAggregated(feedForJournal) {
   if (!hasData()) { showError(t('snapshotMissing')); return; }
-  let lists = JOURNALS.map(j => feedForJournal(j)).filter(l => l.length);
+  let lists = displayJournals().map(j => feedForJournal(j)).filter(l => l.length);
   let fresh = lists.map(l => l.filter(a => !isStale(a)));
   if (!fresh.some(l => l.length)) fresh = lists;
   let merged = interleave(fresh);
