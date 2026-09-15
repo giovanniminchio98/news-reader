@@ -63,4 +63,25 @@ export const JOURNALS = [
     Politics:'https://www.spiegel.de/politik/index.rss', Business:'https://www.spiegel.de/wirtschaft/index.rss',
     Tech:'https://www.spiegel.de/netzwelt/index.rss', Science:'https://www.spiegel.de/wissenschaft/index.rss',
     Culture:'https://www.spiegel.de/kultur/index.rss', Sports:'https://www.spiegel.de/sport/index.rss' } },
+
+  // ── additional English-language sources ──
+  { id: 'aljazeera', lang: 'en', feeds: {
+    Latest:'https://www.aljazeera.com/xml/rss/all.xml' } },
+  { id: 'cnn', lang: 'en', feeds: {
+    Latest:'http://rss.cnn.com/rss/edition.rss', World:'http://rss.cnn.com/rss/edition_world.rss',
+    Europe:'http://rss.cnn.com/rss/edition_europe.rss', Business:'http://rss.cnn.com/rss/edition_business.rss',
+    Tech:'http://rss.cnn.com/rss/edition_technology.rss', Science:'http://rss.cnn.com/rss/edition_space_science.rss',
+    Culture:'http://rss.cnn.com/rss/edition_entertainment.rss', Sports:'http://rss.cnn.com/rss/edition_sport.rss' } },
+  { id: 'nyt', lang: 'en', feeds: {
+    Latest:'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', World:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+    Europe:'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml', Politics:'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml',
+    Business:'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', Tech:'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml',
+    Science:'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml', Culture:'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml',
+    Sports:'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml' } },
+  { id: 'skynews', lang: 'en', feeds: {
+    Latest:'https://feeds.skynews.com/feeds/rss/home.xml', World:'https://feeds.skynews.com/feeds/rss/world.xml',
+    Politics:'https://feeds.skynews.com/feeds/rss/politics.xml', Business:'https://feeds.skynews.com/feeds/rss/business.xml',
+    Tech:'https://feeds.skynews.com/feeds/rss/technology.xml', Culture:'https://feeds.skynews.com/feeds/rss/entertainment.xml' } },
+  { id: 'politico', lang: 'en', feeds: {
+    Latest:'https://www.politico.eu/feed/', Europe:'https://www.politico.eu/feed/' } },
 ];
