@@ -11,6 +11,10 @@ const FULL_TXT_N = 0;      // full-text translation off (conserve API quota; rea
 const FULL_CAP   = 7000;   // max chars of full text per article
 const CACHE_FILE = 'data/.tcache.json';
 const DEEPL_KEY  = process.env.DEEPL_API_KEY || ''; // set as a GitHub Actions secret for reliable translation
+// Free-tier budget control: which UI languages we spend characters translating INTO, and whether to
+// translate summaries too. Defaults keep DeepL Free (500k chars/mo) comfortable: English titles only.
+const TARGETS    = (process.env.TRANSLATE_TARGETS || 'en').split(',').map(s => s.trim()).filter(Boolean);
+const TITLE_ONLY = (process.env.TRANSLATE_TITLE_ONLY || '1') !== '0';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', cdataPropName: '__cdata', trimValues: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -247,26 +251,30 @@ async function main() {
       arts = arts.slice(0, PER_FEED);
 
       for (const L of UI_LANGS) {
-        const [tT, tD] = await Promise.all([
-          translateLines(arts.map(a => a.title), j.lang, L),
-          translateLines(arts.map(a => a.desc), j.lang, L),
-        ]);
+        const translate = L !== j.lang && TARGETS.includes(L);
+        let tT = null, tD = null;
+        if (translate) {
+          tT = await translateLines(arts.map(a => a.title), j.lang, L);
+          tD = TITLE_ONLY ? null : await translateLines(arts.map(a => a.desc), j.lang, L);
+        }
         const outArr = [];
         for (let i = 0; i < arts.length; i++) {
           const a = arts[i];
-          let f;
-          if (a.fullParas.length) {
-            if (j.lang === L) f = a.fullParas;                 // native language: full text is free
-            else if (i < FULL_TXT_N) {                          // others: translate only the top N
-              const tf = await translateLines(a.fullParas, j.lang, L);
-              if (tf && tf.length) f = tf;
-            }
+          if (L === j.lang) {
+            // native language — no translation needed
+            outArr.push({ t: a.title, d: a.desc, l: a.link, p: a.pubDate, c: a.cat, s: j.lang,
+              ...(a.fullParas.length ? { f: a.fullParas.map(decodeEntities) } : {}) });
+          } else if (translate) {
+            // translated into a budgeted language (title; summary blank in title-only mode)
+            outArr.push({
+              t: decodeEntities(tT[i] || a.title),
+              d: tD ? decodeEntities(tD[i] || a.desc) : '',
+              l: a.link, p: a.pubDate, c: a.cat, s: j.lang, o: decodeEntities(a.title),
+            });
+          } else {
+            // not budgeted for this language — leave original, no "translated" badge
+            outArr.push({ t: a.title, d: a.desc, l: a.link, p: a.pubDate, c: a.cat, s: j.lang });
           }
-          outArr.push({
-            t: decodeEntities(tT[i] || a.title), d: decodeEntities(tD[i] || a.desc), l: a.link, p: a.pubDate, c: a.cat, s: j.lang,
-            ...(j.lang !== L ? { o: decodeEntities(a.title) } : {}),
-            ...(f ? { f: f.map(decodeEntities) } : {}),
-          });
         }
         snap[L].journals[j.id][cat] = outArr;
       }
