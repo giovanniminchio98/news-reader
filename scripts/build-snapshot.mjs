@@ -93,71 +93,79 @@ function parseFeed(xml) {
 function capParas(paras) { const out = []; let n = 0; for (const p of paras) { if (n > FULL_CAP) break; out.push(p); n += p.length; } return out; }
 function tdate(s) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
 
-// ── translation: multi-provider fallback (gtx → Lingva mirrors → MyMemory) ──
-// Google's free gtx endpoint blocks datacenter IPs, so we fall back to Lingva
-// (a Google-Translate proxy) and MyMemory. Only real successes are cached.
+// ── translation: probe once, then use only providers that work from this runner
+// gtx (Google) is blocked on datacenter IPs; Lingva (Google proxy) and MyMemory
+// are fallbacks. We detect what works up front so a dead provider never stalls the build.
 let tcache = {};
 const PROV = { gtx: 0, lingva: 0, mymemory: 0, fail: 0 };
-const LINGVA_HOSTS = [
-  'lingva.ml',
-  'lingva.garudalinux.org',
-  'translate.plausibility.cloud',
-  'lingva.lunar.icu',
-  'translate.dr460nf1r3.org',
-];
+const T = 8000; // per-request timeout
+const LINGVA_HOSTS = ['lingva.ml', 'lingva.garudalinux.org', 'translate.plausibility.cloud', 'lingva.lunar.icu', 'translate.dr460nf1r3.org'];
+let LINGVA_HOST = null;        // pinned to the first mirror that answered in the probe
+const WORKING = [];            // ordered [name, fn, multiline] of providers that passed the probe
 
 async function provGtx(text, sl, tl) {
   const api = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   try {
-    const r = await fetch(api, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }, signal: AbortSignal.timeout(15000) });
+    const r = await fetch(api, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }, signal: AbortSignal.timeout(T) });
     if (!r.ok) return null;
     const body = await r.text();
     if (body.trimStart().startsWith('<')) return null; // Google "Sorry…" block page
-    const d = JSON.parse(body);
-    const out = (d[0] || []).map(s => (s && s[0]) ? s[0] : '').join('');
+    const out = (JSON.parse(body)[0] || []).map(s => (s && s[0]) ? s[0] : '').join('');
     return out || null;
   } catch { return null; }
 }
+async function lingvaAt(host, text, sl, tl) {
+  const r = await fetch(`https://${host}/api/v1/${sl}/${tl}/${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(T) });
+  if (!r.ok) return null;
+  const d = await r.json();
+  return (d && typeof d.translation === 'string' && d.translation.trim()) ? d.translation : null;
+}
 async function provLingva(text, sl, tl) {
-  for (const host of LINGVA_HOSTS) {
-    try {
-      const r = await fetch(`https://${host}/api/v1/${sl}/${tl}/${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (d && typeof d.translation === 'string' && d.translation.trim()) return d.translation;
-    } catch { /* try next mirror */ }
-  }
-  return null;
+  if (!LINGVA_HOST) return null;
+  try { return await lingvaAt(LINGVA_HOST, text, sl, tl); } catch { return null; }
 }
 async function provMyMemory(text, sl, tl) {
   try {
-    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`, { signal: AbortSignal.timeout(15000) });
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`, { signal: AbortSignal.timeout(T) });
     if (!r.ok) return null;
-    const d = await r.json();
-    const tr = d && d.responseData && d.responseData.translatedText;
+    const tr = (await r.json())?.responseData?.translatedText;
     if (tr && typeof tr === 'string' && !/MYMEMORY WARNING|QUOTA|INVALID/i.test(tr)) return tr;
   } catch { /* ignore */ }
   return null;
 }
 
+async function probeProviders() {
+  const s = 'Bonjour le monde, ceci est un simple test de traduction.';
+  const g = await provGtx(s, 'fr', 'en');
+  for (const host of LINGVA_HOSTS) {
+    try { if (await lingvaAt(host, s, 'fr', 'en')) { LINGVA_HOST = host; break; } } catch { /* next */ }
+  }
+  const m = await provMyMemory(s, 'fr', 'en');
+  if (g) WORKING.push(['gtx', provGtx, true]);
+  if (LINGVA_HOST) WORKING.push(['lingva', provLingva, true]);
+  if (m) WORKING.push(['mymemory', provMyMemory, false]);
+  console.log(`PROVIDER PROBE  gtx:${g ? 'OK' : 'FAIL'}  lingva:${LINGVA_HOST || 'FAIL'}  mymemory:${m ? 'OK' : 'FAIL'}`);
+  console.log('WORKING providers:', WORKING.map(w => w[0]).join(', ') || 'NONE — articles stay in original language');
+}
+
 // translate one batch (newline-joined); returns per-line text + success flags
 async function translateBatch(lines, sl, tl) {
   const q = lines.join('\n');
-  for (const [name, prov] of [['gtx', provGtx], ['lingva', provLingva]]) {
-    const out = await prov(q, sl, tl);
+  for (const [name, fn, multiline] of WORKING) {
+    if (!multiline) continue;
+    const out = await fn(q, sl, tl);
     if (out != null) {
       const parts = out.split('\n');
       if (parts.length === lines.length) { PROV[name] += lines.length; return { parts, ok: lines.map(() => true) }; }
     }
   }
-  // per-line fallback (adds MyMemory for short strings)
+  // per-line fallback (only providers that passed the probe; MyMemory only for short strings)
   const parts = [], ok = [];
   for (const ln of lines) {
-    const chain = ln.length < 480 ? [['gtx', provGtx], ['lingva', provLingva], ['mymemory', provMyMemory]]
-                                  : [['gtx', provGtx], ['lingva', provLingva]];
     let done = false;
-    for (const [name, prov] of chain) {
-      const t = await prov(ln, sl, tl);
+    for (const [name, fn, multiline] of WORKING) {
+      if (!multiline && ln.length >= 480) continue;
+      const t = await fn(ln, sl, tl);
       if (t != null) { parts.push(t); ok.push(true); PROV[name]++; done = true; break; }
     }
     if (!done) { parts.push(ln); ok.push(false); PROV.fail++; }
@@ -166,7 +174,7 @@ async function translateBatch(lines, sl, tl) {
 }
 
 async function translateLines(lines, sl, tl) {
-  if (sl === tl) return lines.slice();
+  if (sl === tl || !WORKING.length) return lines.slice(); // no provider → keep original, fast
   const out = new Array(lines.length);
   const need = [], idx = [];
   lines.forEach((l, i) => {
@@ -183,7 +191,7 @@ async function translateLines(lines, sl, tl) {
       if (ok[j]) tcache[`${sl}>${tl}:${l}`] = parts[j]; // never cache a fallback
     });
     b = []; bi = []; size = 0;
-    await sleep(120);
+    await sleep(80);
   };
   for (let j = 0; j < need.length; j++) {
     const l = need[j];
@@ -192,15 +200,6 @@ async function translateLines(lines, sl, tl) {
   }
   await flush();
   return out;
-}
-
-async function probeProviders() {
-  const s = 'Bonjour le monde, ceci est un simple test de traduction.';
-  const [g, l, m] = await Promise.all([provGtx(s, 'fr', 'en'), provLingva(s, 'fr', 'en'), provMyMemory(s, 'fr', 'en')]);
-  console.log('PROVIDER PROBE (fr→en):');
-  console.log('  gtx     :', g ? 'OK → ' + g.slice(0, 45) : 'FAIL (blocked)');
-  console.log('  lingva  :', l ? 'OK → ' + l.slice(0, 45) : 'FAIL');
-  console.log('  mymemory:', m ? 'OK → ' + m.slice(0, 45) : 'FAIL');
 }
 
 // ── build ───────────────────────────────────────────────────────────────────
