@@ -93,19 +93,78 @@ function parseFeed(xml) {
 function capParas(paras) { const out = []; let n = 0; for (const p of paras) { if (n > FULL_CAP) break; out.push(p); n += p.length; } return out; }
 function tdate(s) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
 
-// ── translation (free gtx endpoint, batched, cached) ────────────────────────
+// ── translation: multi-provider fallback (gtx → Lingva mirrors → MyMemory) ──
+// Google's free gtx endpoint blocks datacenter IPs, so we fall back to Lingva
+// (a Google-Translate proxy) and MyMemory. Only real successes are cached.
 let tcache = {};
-async function gtx(text, sl, tl) {
+const PROV = { gtx: 0, lingva: 0, mymemory: 0, fail: 0 };
+const LINGVA_HOSTS = [
+  'lingva.ml',
+  'lingva.garudalinux.org',
+  'translate.plausibility.cloud',
+  'lingva.lunar.icu',
+  'translate.dr460nf1r3.org',
+];
+
+async function provGtx(text, sl, tl) {
   const api = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
-  for (let i = 0; i < 3; i++) {
+  try {
+    const r = await fetch(api, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    const body = await r.text();
+    if (body.trimStart().startsWith('<')) return null; // Google "Sorry…" block page
+    const d = JSON.parse(body);
+    const out = (d[0] || []).map(s => (s && s[0]) ? s[0] : '').join('');
+    return out || null;
+  } catch { return null; }
+}
+async function provLingva(text, sl, tl) {
+  for (const host of LINGVA_HOSTS) {
     try {
-      const r = await fetch(api, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(20000) });
-      if (r.ok) { const d = await r.json(); return (d[0] || []).map(s => (s && s[0]) ? s[0] : '').join(''); }
-    } catch { /* retry */ }
-    await sleep(600 * (i + 1));
+      const r = await fetch(`https://${host}/api/v1/${sl}/${tl}/${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (d && typeof d.translation === 'string' && d.translation.trim()) return d.translation;
+    } catch { /* try next mirror */ }
   }
   return null;
 }
+async function provMyMemory(text, sl, tl) {
+  try {
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const tr = d && d.responseData && d.responseData.translatedText;
+    if (tr && typeof tr === 'string' && !/MYMEMORY WARNING|QUOTA|INVALID/i.test(tr)) return tr;
+  } catch { /* ignore */ }
+  return null;
+}
+
+// translate one batch (newline-joined); returns per-line text + success flags
+async function translateBatch(lines, sl, tl) {
+  const q = lines.join('\n');
+  for (const [name, prov] of [['gtx', provGtx], ['lingva', provLingva]]) {
+    const out = await prov(q, sl, tl);
+    if (out != null) {
+      const parts = out.split('\n');
+      if (parts.length === lines.length) { PROV[name] += lines.length; return { parts, ok: lines.map(() => true) }; }
+    }
+  }
+  // per-line fallback (adds MyMemory for short strings)
+  const parts = [], ok = [];
+  for (const ln of lines) {
+    const chain = ln.length < 480 ? [['gtx', provGtx], ['lingva', provLingva], ['mymemory', provMyMemory]]
+                                  : [['gtx', provGtx], ['lingva', provLingva]];
+    let done = false;
+    for (const [name, prov] of chain) {
+      const t = await prov(ln, sl, tl);
+      if (t != null) { parts.push(t); ok.push(true); PROV[name]++; done = true; break; }
+    }
+    if (!done) { parts.push(ln); ok.push(false); PROV.fail++; }
+  }
+  return { parts, ok };
+}
+
 async function translateLines(lines, sl, tl) {
   if (sl === tl) return lines.slice();
   const out = new Array(lines.length);
@@ -118,29 +177,36 @@ async function translateLines(lines, sl, tl) {
   let b = [], bi = [], size = 0;
   const flush = async () => {
     if (!b.length) return;
-    const res = await gtx(b.join('\n'), sl, tl);
-    const parts = res != null ? res.split('\n') : null;
-    const good = parts && parts.length === b.length;
+    const { parts, ok } = await translateBatch(b, sl, tl);
     b.forEach((l, j) => {
-      const val = good ? parts[j] : l;          // fall back to original on failure
-      out[bi[j]] = val;
-      if (good) tcache[`${sl}>${tl}:${l}`] = val; // but NEVER cache a fallback — retry it next run
+      out[bi[j]] = parts[j];
+      if (ok[j]) tcache[`${sl}>${tl}:${l}`] = parts[j]; // never cache a fallback
     });
     b = []; bi = []; size = 0;
-    if (good) await sleep(200);
+    await sleep(120);
   };
   for (let j = 0; j < need.length; j++) {
     const l = need[j];
-    if (size + l.length > 1200 && b.length) await flush();
+    if (size + l.length > 1000 && b.length) await flush();
     b.push(l); bi.push(idx[j]); size += l.length + 1;
   }
   await flush();
   return out;
 }
 
+async function probeProviders() {
+  const s = 'Bonjour le monde, ceci est un simple test de traduction.';
+  const [g, l, m] = await Promise.all([provGtx(s, 'fr', 'en'), provLingva(s, 'fr', 'en'), provMyMemory(s, 'fr', 'en')]);
+  console.log('PROVIDER PROBE (fr→en):');
+  console.log('  gtx     :', g ? 'OK → ' + g.slice(0, 45) : 'FAIL (blocked)');
+  console.log('  lingva  :', l ? 'OK → ' + l.slice(0, 45) : 'FAIL');
+  console.log('  mymemory:', m ? 'OK → ' + m.slice(0, 45) : 'FAIL');
+}
+
 // ── build ───────────────────────────────────────────────────────────────────
 async function main() {
   try { tcache = JSON.parse(await fs.readFile(CACHE_FILE, 'utf8')); } catch { tcache = {}; }
+  await probeProviders();
   const ts = Date.now();
   const snap = {};
   UI_LANGS.forEach(L => { snap[L] = { ts, intervalMin: 30, journals: {} }; });
@@ -189,6 +255,7 @@ async function main() {
   for (const L of UI_LANGS) await fs.writeFile(`data/snapshot.${L}.json`, JSON.stringify(snap[L]));
   await fs.writeFile(CACHE_FILE, JSON.stringify(tcache));
   console.log(`Done. feeds ok=${feedsOk} fail=${feedsFail}, cache entries=${Object.keys(tcache).length}`);
+  console.log(`TRANSLATION via gtx=${PROV.gtx} lingva=${PROV.lingva} mymemory=${PROV.mymemory} fail=${PROV.fail}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
